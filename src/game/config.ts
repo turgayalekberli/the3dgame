@@ -17,3 +17,14 @@ export const MAX_DELTA = 0.1
 
 // Если промах меньше этого значения — ставим плиту ровно, без отрезания
 export const PERFECT_TOLERANCE = 0.1
+
+// Обрезки меньше этого размера не создаём (погрешность дробных чисел)
+export const MIN_PIECE = 0.01
+
+// Падающие обрезки
+export const GRAVITY = 20
+export const DEBRIS_PUSH = 1.5
+export const DEBRIS_SPIN = 2
+
+// На сколько ниже камеры обрезок удаляется со сцены
+export const DEBRIS_CLEANUP_DEPTH = 20
