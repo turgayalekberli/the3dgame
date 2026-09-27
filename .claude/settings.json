@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(head:*)",
+      "Bash(tail:*)",
+      "Bash(wc:*)",
+      "Bash(find:*)",
+      "Bash(grep:*)",
+      "Bash(rg:*)",
+      "Bash(sed -n:*)",
+      "Bash(tree:*)",
+      "Bash(git status:*)",
+      "Bash(git log:*)",
+      "Bash(git diff:*)"
+    ],
+    "deny": [
+      "Bash(curl -X DELETE:*)",
+      "Bash(curl --request DELETE:*)",
+      "Bash(curl -XDELETE:*)"
+    ]
+  }
+}
