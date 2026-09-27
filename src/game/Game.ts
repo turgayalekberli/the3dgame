@@ -38,6 +38,9 @@ import type { EnemyType, GridPoint, TowerType } from './types'
 
 // Горячие клавиши выбора башен — по порядку TOWER_ORDER
 const TOWER_HOTKEYS = ['Digit1', 'Digit2', 'Digit3']
+// Улучшить и продать выбранную башню
+const UPGRADE_KEY = 'KeyU'
+const SELL_KEY = 'KeyS'
 
 // Вне волны башням не в кого стрелять
 const NO_ENEMIES: readonly Enemy[] = []
@@ -61,6 +64,8 @@ export class Game {
   private readonly spawner = new WaveSpawner()
   private readonly combat = new Combat(this.scene)
   private readonly highlight = new CellHighlight()
+  // Выделение выбранной построенной башни
+  private readonly selection = new CellHighlight()
   private readonly pointer: Pointer
 
   // Живые враги на карте
@@ -69,8 +74,9 @@ export class Game {
   // Построенные башни по ключу клетки (Grid.key)
   private readonly towers = new Map<number, Tower>()
 
-  // Клетка под курсором (null — курсор не над картой или режим постройки выключен)
-  private hoveredCell: GridPoint | null = null
+  // Выбранная построенная башня
+  private selected: Tower | null = null
+
   private readonly pointerPoint = new THREE.Vector3()
   private readonly cellCenter = new THREE.Vector3()
   private readonly effectPoint = new THREE.Vector3()
@@ -94,7 +100,7 @@ export class Game {
     this.grid = new Grid(LEVEL_1)
     this.path = new Path(this.grid)
     this.arena = new Arena(this.grid)
-    this.scene.add(this.arena.group, this.highlight.group)
+    this.scene.add(this.arena.group, this.highlight.group, this.selection.group)
 
     this.sun = this.createLights()
 
@@ -137,7 +143,33 @@ export class Game {
       return
     }
     if (this.store.credits < TOWER_STATS[type].cost) return
+    // Режим постройки и выбор построенной башни не совмещаются
+    this.selectBuilt(null)
     this.store.selectedTower = type
+  }
+
+  // Команда из HUD и клавиши U: улучшить выбранную башню
+  upgradeSelected(): void {
+    const tower = this.selected
+    if (!tower || !this.canInteract) return
+    const cost = tower.upgradeCost
+    if (cost === null || this.store.credits < cost) return
+
+    this.store.credits -= cost
+    tower.upgrade(this.towerModels)
+    // Обновить панель и кольцо радиуса
+    this.selectBuilt(tower)
+  }
+
+  // Команда из HUD и клавиши S: продать выбранную башню
+  sellSelected(): void {
+    const tower = this.selected
+    if (!tower || !this.canInteract) return
+
+    this.store.credits += tower.sellValue
+    this.towers.delete(this.grid.key(tower.cell))
+    this.scene.remove(tower.root)
+    this.selectBuilt(null)
   }
 
   // Строить и выбирать можно, пока партия идёт
@@ -152,24 +184,79 @@ export class Game {
     this.towers.clear()
     this.combat.clear()
     this.spawner.stop()
+    this.selected = null
+    this.selection.hide()
     Object.assign(this.store, initialState())
   }
 
-  private handleKey(code: string): void {
-    if (code === 'Escape') {
-      this.selectTower(null)
+  // Выбрать построенную башню (null — снять выбор): выделение на карте и данные для панели
+  private selectBuilt(tower: Tower | null): void {
+    this.selected = tower
+    this.store.selectedInfo = tower ? tower.info() : null
+
+    if (!tower) {
+      this.selection.hide()
       return
+    }
+    const color = COLORS[tower.type]
+    this.selection.show(tower.root.position, color, tower.range * CELL_SIZE, color)
+  }
+
+  // Конец партии: всё останавливаем и снимаем выбор
+  private finish(state: 'victory' | 'defeat'): void {
+    this.spawner.stop()
+    this.combat.clear()
+    this.selectBuilt(null)
+    this.store.selectedTower = null
+    this.store.state = state
+  }
+
+  private handleKey(code: string): void {
+    switch (code) {
+      case 'Escape':
+        this.selectTower(null)
+        this.selectBuilt(null)
+        return
+      case UPGRADE_KEY:
+        this.upgradeSelected()
+        return
+      case SELL_KEY:
+        this.sellSelected()
+        return
     }
     const index = TOWER_HOTKEYS.indexOf(code)
     if (index >= 0) this.selectTower(TOWER_ORDER[index])
   }
 
   private handleClick(): void {
+    if (!this.canInteract) return
+
     // Клетку определяем в момент клика, а не по прошлому кадру
-    this.updateHover()
+    const cell = this.pickCell()
+    const tower = cell ? this.towers.get(this.grid.key(cell)) : undefined
+
+    // Клик по башне выбирает её и выключает режим постройки
+    if (tower) {
+      this.store.selectedTower = null
+      this.selectBuilt(tower)
+      return
+    }
+
+    // В режиме постройки клик по неподходящей клетке ничего не делает
     const type = this.store.selectedTower
-    const cell = this.hoveredCell
-    if (type && cell && this.canBuild(type, cell)) this.build(type, cell)
+    if (type) {
+      if (cell && this.canBuild(type, cell)) this.build(type, cell)
+      return
+    }
+
+    // Клик по пустому месту снимает выбор
+    this.selectBuilt(null)
+  }
+
+  // Клетка под курсором; null — курсор не над картой
+  private pickCell(): GridPoint | null {
+    if (!this.pointer.pick(this.pointerPoint)) return null
+    return this.grid.fromWorld(this.pointerPoint.x, this.pointerPoint.z)
   }
 
   private canBuild(type: TowerType, cell: GridPoint): boolean {
@@ -193,9 +280,7 @@ export class Game {
   // Клетка под курсором и её подсветка с кругом радиуса выбранной башни
   private updateHover(): void {
     const type = this.store.selectedTower
-    const picked = type !== null && this.canInteract && this.pointer.pick(this.pointerPoint)
-    const cell = picked ? this.grid.fromWorld(this.pointerPoint.x, this.pointerPoint.z) : null
-    this.hoveredCell = cell
+    const cell = type !== null && this.canInteract ? this.pickCell() : null
 
     if (!type || !cell) {
       this.highlight.hide()
@@ -204,7 +289,7 @@ export class Game {
 
     this.highlight.show(
       this.grid.toWorld(cell, this.cellCenter),
-      this.canBuild(type, cell),
+      this.canBuild(type, cell) ? COLORS.valid : COLORS.invalid,
       TOWER_STATS[type].range * CELL_SIZE,
       COLORS[type],
     )
@@ -221,11 +306,9 @@ export class Game {
     this.spawner.update(delta, this.spawnEnemy)
     this.updateEnemies(delta)
 
-    // Жизни кончились — поражение: враги замирают, снаряды и вспышки убираем
+    // Жизни кончились — поражение, враги замирают на местах
     if (this.store.lives === 0) {
-      this.spawner.stop()
-      this.combat.clear()
-      this.store.state = 'defeat'
+      this.finish('defeat')
       return
     }
 
@@ -273,7 +356,8 @@ export class Game {
 
   private completeWave(): void {
     this.store.credits += WAVE_BONUS_BASE + WAVE_BONUS_PER_WAVE * this.store.wave
-    this.store.state = this.store.wave >= this.store.totalWaves ? 'victory' : 'build'
+    if (this.store.wave >= this.store.totalWaves) this.finish('victory')
+    else this.store.state = 'build'
   }
 
   private createLights(): THREE.DirectionalLight {
@@ -333,6 +417,7 @@ export class Game {
     this.postFx.dispose()
     this.arena.dispose()
     this.highlight.dispose()
+    this.selection.dispose()
     this.combat.dispose()
     this.models.dispose()
     this.towerModels.dispose()

@@ -25,3 +25,12 @@ export const TOWER_STATS: Readonly<Record<TowerType, TowerStats>> = {
 
 // Порядок в панели; он же задаёт горячие клавиши 1, 2, 3
 export const TOWER_ORDER: readonly TowerType[] = ['pulse', 'rocket', 'cryo']
+
+// Улучшение: сколько уровней всего, цена — доля базовой, прибавка к урону и радиусу за уровень
+export const MAX_TOWER_LEVEL = 2
+export const UPGRADE_COST_RATIO = 0.75
+export const UPGRADE_DAMAGE_BONUS = 0.5
+export const UPGRADE_RANGE_BONUS = 0.15
+
+// Продажа возвращает эту долю всех вложений (постройка + улучшения)
+export const SELL_RATIO = 0.7

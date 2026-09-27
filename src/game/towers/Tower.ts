@@ -2,9 +2,17 @@ import * as THREE from 'three'
 import type { Combat } from '../combat/Combat'
 import { BEAM_PULSE_SPEED, CELL_SIZE, TOWER_AIM_TOLERANCE, TOWER_IDLE_SPIN, TOWER_TURN_DAMPING } from '../config'
 import type { Enemy } from '../enemies/Enemy'
-import type { GridPoint, TowerType } from '../types'
+import type { GridPoint, TowerInfo, TowerType } from '../types'
 import type { TowerModel, TowerModels } from './TowerModels'
-import { TOWER_STATS, type TowerStats } from './towerTypes'
+import {
+  MAX_TOWER_LEVEL,
+  SELL_RATIO,
+  TOWER_STATS,
+  UPGRADE_COST_RATIO,
+  UPGRADE_DAMAGE_BONUS,
+  UPGRADE_RANGE_BONUS,
+  type TowerStats,
+} from './towerTypes'
 
 const UP = new THREE.Vector3(0, 1, 0)
 
@@ -19,12 +27,11 @@ export class Tower {
   readonly stats: TowerStats
   readonly cell: GridPoint
 
-  // Вложенные кредиты — часть вернётся при продаже (Фаза 4)
+  // Вложенные кредиты (постройка + улучшения) — часть вернётся при продаже
   invested: number
+  level = 1
 
   private readonly model: TowerModel
-  // Радиус в мировых единицах
-  private readonly range: number
   // Луч есть только у башни непрерывного действия (fireRate = 0)
   private readonly beam: THREE.Mesh | null
 
@@ -40,7 +47,6 @@ export class Tower {
     this.stats = TOWER_STATS[type]
     this.cell = cell
     this.invested = this.stats.cost
-    this.range = this.stats.range * CELL_SIZE
 
     this.model = models.create(type)
     this.model.root.position.copy(position)
@@ -54,6 +60,48 @@ export class Tower {
 
   get root(): THREE.Group {
     return this.model.root
+  }
+
+  // Урон с учётом улучшений: за выстрел, у луча — в секунду
+  get damage(): number {
+    return this.stats.damage * (1 + UPGRADE_DAMAGE_BONUS * (this.level - 1))
+  }
+
+  // Радиус в клетках с учётом улучшений
+  get range(): number {
+    return this.stats.range * (1 + UPGRADE_RANGE_BONUS * (this.level - 1))
+  }
+
+  // Цена следующего улучшения; null — уровень максимальный
+  get upgradeCost(): number | null {
+    return this.level < MAX_TOWER_LEVEL ? Math.round(this.stats.cost * UPGRADE_COST_RATIO) : null
+  }
+
+  get sellValue(): number {
+    return Math.floor(this.invested * SELL_RATIO)
+  }
+
+  // Кредиты списывает и проверяет Game
+  upgrade(models: TowerModels): void {
+    const cost = this.upgradeCost
+    if (cost === null) return
+    this.invested += cost
+    this.level++
+    models.upgrade(this.type, this.model)
+  }
+
+  // Данные для панели выбранной башни
+  info(): TowerInfo {
+    return {
+      type: this.type,
+      level: this.level,
+      maxLevel: MAX_TOWER_LEVEL,
+      damage: this.damage,
+      fireRate: this.stats.fireRate,
+      range: this.range,
+      upgradeCost: this.upgradeCost,
+      sellValue: this.sellValue,
+    }
   }
 
   // enemies — враги, по которым можно стрелять (вне волны — пустой список)
@@ -75,7 +123,8 @@ export class Tower {
   // Таргетинг First: из врагов в радиусе — тот, кто прошёл по пути дальше всех
   private findTarget(enemies: readonly Enemy[]): Enemy | null {
     const position = this.model.root.position
-    const rangeSq = this.range * this.range
+    const range = this.range * CELL_SIZE
+    const rangeSq = range * range
     let best: Enemy | null = null
 
     for (const enemy of enemies) {
@@ -107,12 +156,12 @@ export class Tower {
     this.muzzlePoint(muzzles[this.muzzleIndex], muzzle)
     this.muzzleIndex = (this.muzzleIndex + 1) % muzzles.length
 
-    combat.fire(this.type, muzzle, target, this.stats.damage, this.stats.splash * CELL_SIZE)
+    combat.fire(this.type, muzzle, target, this.damage, this.stats.splash * CELL_SIZE)
   }
 
   // Непрерывный луч: урон в секунду и замедление, пока цель в луче
   private fireBeam(beam: THREE.Mesh, target: Enemy, delta: number): void {
-    target.takeDamage(this.stats.damage * delta)
+    target.takeDamage(this.damage * delta)
     target.applySlow(this.stats.slow, this.stats.slowDuration)
 
     // Луч — дочерний объект корня башни; корень не повёрнут и не масштабирован,

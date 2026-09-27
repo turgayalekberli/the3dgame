@@ -13,7 +13,8 @@ const emit = defineEmits<{ select: [type: TowerType] }>()
       v-for="(type, index) in TOWER_ORDER"
       :key="type"
       class="card"
-      :class="[type, { active: selected === type }]"
+      :class="{ active: selected === type }"
+      :data-tower="type"
       :disabled="credits < TOWER_STATS[type].cost && selected !== type"
       @click="emit('select', type)"
     >
@@ -28,19 +29,6 @@ const emit = defineEmits<{ select: [type: TowerType] }>()
 .panel {
   display: flex;
   gap: 0.75rem;
-}
-
-/* Цвета совпадают с неоном башен (COLORS в config.ts) */
-.pulse {
-  --accent: 255 209 102;
-}
-
-.rocket {
-  --accent: 255 138 61;
-}
-
-.cryo {
-  --accent: 127 231 255;
 }
 
 .card {

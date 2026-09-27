@@ -2,10 +2,17 @@
 import { computed, type DeepReadonly } from 'vue'
 import type { GameStore } from '../game/store'
 import type { TowerType } from '../game/types'
+import SelectedTowerPanel from './SelectedTowerPanel.vue'
 import TowerPanel from './TowerPanel.vue'
 
 const props = defineProps<{ store: DeepReadonly<GameStore> }>()
-const emit = defineEmits<{ startWave: []; restart: []; selectTower: [type: TowerType] }>()
+const emit = defineEmits<{
+  startWave: []
+  restart: []
+  selectTower: [type: TowerType]
+  upgrade: []
+  sell: []
+}>()
 
 const isFinished = computed(() => props.store.state === 'victory' || props.store.state === 'defeat')
 </script>
@@ -28,6 +35,15 @@ const isFinished = computed(() => props.store.state === 'victory' || props.store
     </div>
 
     <div class="bottom">
+      <SelectedTowerPanel
+        v-if="store.selectedInfo && !isFinished"
+        class="info"
+        :info="store.selectedInfo"
+        :credits="store.credits"
+        @upgrade="emit('upgrade')"
+        @sell="emit('sell')"
+      />
+
       <TowerPanel
         v-if="!isFinished"
         class="towers"
@@ -104,11 +120,16 @@ const isFinished = computed(() => props.store.state === 'victory' || props.store
   color: #ff5c8a;
 }
 
-/* Нижняя строка: панель башен по центру, кнопка волны справа */
+/* Нижняя строка: выбранная башня слева, панель постройки по центру, кнопка волны справа */
 .bottom {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   align-items: end;
+}
+
+.info {
+  grid-column: 1;
+  justify-self: start;
 }
 
 .towers {

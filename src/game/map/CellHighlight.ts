@@ -1,7 +1,6 @@
 import * as THREE from 'three'
 import {
   CELL_SIZE,
-  COLORS,
   HIGHLIGHT_INTENSITY,
   HIGHLIGHT_WIDTH,
   RANGE_FILL_OPACITY,
@@ -21,8 +20,8 @@ function flat(geometry: THREE.BufferGeometry, material: THREE.Material): THREE.M
   return mesh
 }
 
-// Подсветка клетки под курсором (зелёная — строить можно, красная — нельзя)
-// и круг радиуса выбранной башни
+// Рамка на клетке и круг радиуса башни: подсветка клетки под курсором при постройке
+// и выделение выбранной построенной башни
 export class CellHighlight {
   readonly group = new THREE.Group()
 
@@ -56,13 +55,13 @@ export class CellHighlight {
   }
 
   // position — центр клетки; radius — радиус башни в мировых единицах
-  show(position: THREE.Vector3, valid: boolean, radius: number, color: number): void {
+  show(position: THREE.Vector3, frameColor: number, radius: number, rangeColor: number): void {
     this.group.visible = true
     this.group.position.set(position.x, HEIGHT, position.z)
 
-    this.frameMaterial.color.set(valid ? COLORS.valid : COLORS.invalid).multiplyScalar(HIGHLIGHT_INTENSITY)
-    this.ringMaterial.color.set(color)
-    this.fillMaterial.color.set(color)
+    this.frameMaterial.color.set(frameColor).multiplyScalar(HIGHLIGHT_INTENSITY)
+    this.ringMaterial.color.set(rangeColor)
+    this.fillMaterial.color.set(rangeColor)
 
     if (radius !== this.radius) {
       this.radius = radius

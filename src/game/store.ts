@@ -1,5 +1,5 @@
 import { START_CREDITS, START_LIVES } from './config'
-import type { GameState, TowerType } from './types'
+import type { GameState, TowerInfo, TowerType } from './types'
 import { WAVES } from './waves/waves'
 
 // Состояние, которое видит интерфейс. Только примитивы: Vue оборачивает объект в reactive(),
@@ -13,6 +13,8 @@ export interface GameStore {
   totalWaves: number
   // Башня, выбранная для постройки (null — режим постройки выключен)
   selectedTower: TowerType | null
+  // Выбранная построенная башня (null — ничего не выбрано)
+  selectedInfo: TowerInfo | null
 }
 
 export function initialState(): GameStore {
@@ -23,5 +25,6 @@ export function initialState(): GameStore {
     wave: 0,
     totalWaves: WAVES.length,
     selectedTower: null,
+    selectedInfo: null,
   }
 }

@@ -16,3 +16,16 @@ body {
 canvas {
   display: block;
 }
+
+/* Акцентные цвета башен для интерфейса — совпадают с неоном башен (COLORS в config.ts) */
+[data-tower='pulse'] {
+  --accent: 255 209 102;
+}
+
+[data-tower='rocket'] {
+  --accent: 255 138 61;
+}
+
+[data-tower='cryo'] {
+  --accent: 127 231 255;
+}

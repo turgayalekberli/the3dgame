@@ -32,6 +32,14 @@ function selectTower(type: TowerType): void {
   game?.selectTower(type)
 }
 
+function upgrade(): void {
+  game?.upgradeSelected()
+}
+
+function sell(): void {
+  game?.sellSelected()
+}
+
 onBeforeUnmount(() => {
   game?.dispose()
   game = null
@@ -40,7 +48,14 @@ onBeforeUnmount(() => {
 
 <template>
   <div ref="container" class="game" />
-  <Hud :store="view" @start-wave="startWave" @restart="restart" @select-tower="selectTower" />
+  <Hud
+    :store="view"
+    @start-wave="startWave"
+    @restart="restart"
+    @select-tower="selectTower"
+    @upgrade="upgrade"
+    @sell="sell"
+  />
 </template>
 
 <style scoped>

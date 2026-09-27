@@ -5,6 +5,9 @@ import type { TowerType } from '../types'
 // Высота оси поворота головы над основанием башни
 const HEAD_Y = 0.6
 const HEAD_NAME = 'head'
+// Улучшенная башня: голова крупнее, на платформе — второе неоновое кольцо
+const UPGRADED_HEAD_SCALE = 1.15
+const UPGRADE_RING_Y = 0.33
 
 // Точки вылета снарядов (у луча — точка излучения) в координатах головы.
 // Башня перебирает их по кругу: стволы пулемёта и трубы ракетницы стреляют поочерёдно
@@ -42,11 +45,15 @@ export class TowerModels {
   private readonly baseGeometry: THREE.BufferGeometry
   private readonly trimGeometry: THREE.BufferGeometry
   private readonly neckGeometry: THREE.BufferGeometry
+  // Кольцо улучшения: тор с 6 сегментами по кругу — шестигранник под стать платформе
+  private readonly upgradeRingGeometry: THREE.BufferGeometry
 
   // Луч крио-башни: открытый цилиндр высотой 1 вдоль Y — растягивается на длину луча
   private readonly beamGeometry: THREE.BufferGeometry
   private readonly beamMaterial: THREE.MeshBasicMaterial
 
+  // Неон каждого типа — общий для прототипа и деталей улучшения
+  private readonly neons: Record<TowerType, THREE.Material>
   private readonly prototypes: Record<TowerType, THREE.Group>
 
   constructor() {
@@ -56,6 +63,7 @@ export class TowerModels {
     this.baseGeometry = this.geometry(new THREE.CylinderGeometry(0.75, 0.85, 0.3, 6))
     this.trimGeometry = this.geometry(new THREE.CylinderGeometry(0.77, 0.77, 0.05, 6))
     this.neckGeometry = this.geometry(new THREE.CylinderGeometry(0.22, 0.3, 0.3, 8))
+    this.upgradeRingGeometry = this.geometry(new THREE.TorusGeometry(0.55, 0.035, 6, 6))
 
     this.beamGeometry = this.geometry(new THREE.CylinderGeometry(BEAM_RADIUS, BEAM_RADIUS, 1, 8, 1, true))
     this.beamMaterial = this.track(
@@ -68,6 +76,11 @@ export class TowerModels {
       }),
     )
 
+    this.neons = {
+      pulse: this.neon(COLORS.pulse),
+      rocket: this.neon(COLORS.rocket),
+      cryo: this.neon(COLORS.cryo),
+    }
     this.prototypes = {
       pulse: this.createPulse(),
       rocket: this.createRocket(),
@@ -85,6 +98,15 @@ export class TowerModels {
 
   createBeam(): THREE.Mesh {
     return new THREE.Mesh(this.beamGeometry, this.beamMaterial)
+  }
+
+  // Внешний вид улучшения: второе кольцо на платформе и чуть крупнее голова
+  upgrade(type: TowerType, model: TowerModel): void {
+    const ring = this.mesh(this.upgradeRingGeometry, this.neons[type])
+    ring.rotation.x = Math.PI / 2
+    ring.position.y = UPGRADE_RING_Y
+    model.root.add(ring)
+    model.head.scale.setScalar(UPGRADED_HEAD_SCALE)
   }
 
   // Прототип: шестигранная платформа с неоновым кантом + голова на оси поворота
@@ -106,7 +128,7 @@ export class TowerModels {
 
   // Пулемёт: корпус с неоновой полосой и спаренные стволы со светящимися дульными срезами
   private createPulse(): THREE.Group {
-    const neon = this.neon(COLORS.pulse)
+    const neon = this.neons.pulse
 
     const body = this.mesh(this.geometry(new THREE.BoxGeometry(0.5, 0.3, 0.55)), this.metal)
     // Чуть шире корпуса — выступает полосами по бокам
@@ -131,7 +153,7 @@ export class TowerModels {
 
   // Ракетница: блок из четырёх пусковых труб, торцы светятся
   private createRocket(): THREE.Group {
-    const neon = this.neon(COLORS.rocket)
+    const neon = this.neons.rocket
 
     const body = this.mesh(this.geometry(new THREE.BoxGeometry(0.7, 0.45, 0.5)), this.metal)
     const tubeGeometry = this.geometry(new THREE.CylinderGeometry(0.1, 0.1, 0.4, 10))
@@ -154,7 +176,7 @@ export class TowerModels {
 
   // Крио-луч: пилон с вытянутым светящимся кристаллом в кольце
   private createCryo(): THREE.Group {
-    const neon = this.neon(COLORS.cryo)
+    const neon = this.neons.cryo
 
     const pylon = this.mesh(this.geometry(new THREE.CylinderGeometry(0.1, 0.18, 0.4, 6)), this.metal)
     pylon.position.y = 0.2
