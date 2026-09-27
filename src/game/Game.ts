@@ -1,12 +1,16 @@
 import * as THREE from 'three'
 import { Block } from './Block'
 import { Debris } from './Debris'
+import { Palette } from './Palette'
 import {
+  BACKGROUND_DAMPING,
   BLOCK_HEIGHT,
   BLOCK_SIZE,
   CAMERA_DAMPING,
   CAMERA_OFFSET,
   DEBRIS_CLEANUP_DEPTH,
+  FOG_FAR,
+  FOG_NEAR,
   MAX_DELTA,
   MIN_PIECE,
   MOVE_RANGE,
@@ -38,6 +42,14 @@ export class Game {
   // Высота, на которую сейчас смотрит камера (плавно догоняет вершину башни)
   private focusY = 0
 
+  // Палитра текущей партии; при рестарте создаётся новая
+  private palette = new Palette()
+
+  // Текущий цвет фона и тот, к которому он плавно стремится
+  private readonly background = new THREE.Color()
+  private readonly targetBackground = new THREE.Color()
+  private readonly fog: THREE.Fog
+
   constructor(container: HTMLElement, events: GameEvents) {
     this.container = container
     this.events = events
@@ -47,7 +59,10 @@ export class Game {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
     container.appendChild(this.renderer.domElement)
 
-    this.scene.background = new THREE.Color(0x111111)
+    // Фон и туман одного цвета: дальние объекты плавно растворяются в фоне
+    this.fog = new THREE.Fog(this.background, FOG_NEAR, FOG_FAR)
+    this.scene.background = this.background
+    this.scene.fog = this.fog
 
     // Camera: угол обзора 45°, видит от 0.1 до 100 единиц
     this.camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100)
@@ -59,6 +74,9 @@ export class Game {
     this.scene.add(ambient, sun)
 
     this.start()
+
+    // Первый кадр сразу в цвет палитры, без перехода из чёрного
+    this.palette.background(this.blocks.length, this.background)
 
     container.addEventListener('pointerdown', this.onPointerDown)
 
@@ -92,14 +110,12 @@ export class Game {
     this.blocks.length = 0
     this.debris.length = 0
 
+    this.palette = new Palette()
     this.start()
   }
 
   private createBlock(index: number, width: number, depth: number): Block {
-    // Каждая следующая плита чуть сдвигает оттенок по цветовому кругу
-    const color = new THREE.Color().setHSL((index * 0.04) % 1, 0.6, 0.55)
-
-    const block = new Block(width, depth, color)
+    const block = new Block(width, depth, this.palette.block(index))
     block.mesh.position.y = index * BLOCK_HEIGHT
     this.scene.add(block.mesh)
     return block
@@ -235,6 +251,11 @@ export class Game {
     this.focusY = THREE.MathUtils.damp(this.focusY, targetY, CAMERA_DAMPING, delta)
     this.camera.position.set(CAMERA_OFFSET.x, this.focusY + CAMERA_OFFSET.y, CAMERA_OFFSET.z)
     this.camera.lookAt(0, this.focusY, 0)
+
+    // Фон плавно перетекает к цвету текущей высоты; туман — того же цвета
+    this.palette.background(this.blocks.length, this.targetBackground)
+    this.background.lerp(this.targetBackground, 1 - Math.exp(-BACKGROUND_DAMPING * delta))
+    this.fog.color.copy(this.background)
 
     this.renderer.render(this.scene, this.camera)
   }

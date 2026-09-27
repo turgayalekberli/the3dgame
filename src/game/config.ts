@@ -28,3 +28,13 @@ export const DEBRIS_SPIN = 2
 
 // На сколько ниже камеры обрезок удаляется со сцены
 export const DEBRIS_CLEANUP_DEPTH = 20
+
+// Цвета: сдвиг оттенка на каждую плиту (доля цветового круга)
+export const HUE_STEP = 0.025
+
+// Скорость, с которой фон перетекает к новому цвету
+export const BACKGROUND_DAMPING = 2
+
+// Туман: с какого расстояния от камеры начинается и где объекты полностью растворяются
+export const FOG_NEAR = 12
+export const FOG_FAR = 30
