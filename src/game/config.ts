@@ -90,6 +90,27 @@ export const HEALTH_BAR_PADDING = 0.02
 
 // Башни: скорость холостого вращения головы (рад/сек)
 export const TOWER_IDLE_SPIN = 0.4
+// Доворот головы к цели и допуск прицеливания, с которым уже можно стрелять (рад)
+export const TOWER_TURN_DAMPING = 12
+export const TOWER_AIM_TOLERANCE = 0.15
+
+// Снаряды: скорость (единиц/сек)
+export const PULSE_PROJECTILE_SPEED = 24
+export const ROCKET_PROJECTILE_SPEED = 9
+
+// Вспышки: попадание трассера, взрыв ракеты (радиус = сплеш), гибель врага.
+// Длительность — в секундах, яркость больше 1 — светится через bloom
+export const HIT_FLASH_RADIUS = 0.25
+export const HIT_FLASH_DURATION = 0.12
+export const ROCKET_EXPLOSION_DURATION = 0.35
+export const DEATH_FLASH_RADIUS = 0.8
+export const DEATH_FLASH_DURATION = 0.35
+export const FLASH_INTENSITY = 2
+
+// Луч крио-башни: толщина, яркость и частота пульсации
+export const BEAM_RADIUS = 0.04
+export const BEAM_INTENSITY = 2.5
+export const BEAM_PULSE_SPEED = 30
 
 // Подсветка клетки под курсором: толщина рамки и яркость (больше 1 — светится через bloom)
 export const HIGHLIGHT_WIDTH = 0.08

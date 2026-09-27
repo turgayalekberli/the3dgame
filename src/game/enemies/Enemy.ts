@@ -17,12 +17,13 @@ export class Enemy {
   // Пройденная дистанция — прогресс по пути, по нему считается таргетинг First
   distance = 0
 
-  // Множитель скорости: меньше 1 — замедление (Cryo Beam в Фазе 3)
-  speedMultiplier = 1
-
   private readonly model: EnemyModel
   private readonly path: Path
   private heading: number
+
+  // Замедление: доля снижения скорости и сколько секунд оно ещё действует
+  private slow = 0
+  private slowTimer = 0
 
   // Случайная фаза покачивания — чтобы враги не качались в такт
   private bobTime = Math.random() * Math.PI * 2
@@ -48,8 +49,25 @@ export class Enemy {
     return this.distance >= this.path.length
   }
 
+  // Жив и ещё на карте — по нему можно стрелять
+  get alive(): boolean {
+    return this.hp > 0 && !this.finished
+  }
+
+  // Точка прицеливания — центр корпуса (без покачивания, чтобы снаряды не «дрожали»)
+  aimPoint(target: THREE.Vector3): THREE.Vector3 {
+    target.copy(this.model.root.position)
+    target.y += this.model.hover
+    return target
+  }
+
   update(delta: number): void {
-    this.distance += this.stats.speed * CELL_SIZE * this.speedMultiplier * delta
+    if (this.slowTimer > 0) {
+      this.slowTimer -= delta
+      if (this.slowTimer <= 0) this.slow = 0
+    }
+
+    this.distance += this.stats.speed * CELL_SIZE * (1 - this.slow) * delta
     this.path.sample(this.distance, this.model.root.position, direction)
 
     // Плавный доворот на углах — кратчайшим путём к направлению движения
@@ -62,10 +80,16 @@ export class Enemy {
     this.model.body.position.y = this.model.hover + Math.sin(this.bobTime) * ENEMY_BOB_AMPLITUDE
   }
 
-  // Возвращает true, если враг уничтожен (стрельба — в Фазе 3)
+  // Возвращает true, если враг уничтожен
   takeDamage(amount: number): boolean {
     this.hp = Math.max(0, this.hp - amount)
     this.model.bar.set(this.hp / this.stats.hp)
     return this.hp === 0
+  }
+
+  // Замедление не складывается: действует сильнейшее, таймер — по самому долгому
+  applySlow(amount: number, duration: number): void {
+    this.slow = Math.max(this.slow, amount)
+    this.slowTimer = Math.max(this.slowTimer, duration)
   }
 }

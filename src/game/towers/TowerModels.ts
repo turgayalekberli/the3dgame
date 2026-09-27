@@ -1,15 +1,29 @@
 import * as THREE from 'three'
-import { COLORS, NEON_INTENSITY } from '../config'
+import { BEAM_INTENSITY, BEAM_RADIUS, COLORS, NEON_INTENSITY } from '../config'
 import type { TowerType } from '../types'
 
 // Высота оси поворота головы над основанием башни
 const HEAD_Y = 0.6
 const HEAD_NAME = 'head'
 
+// Точки вылета снарядов (у луча — точка излучения) в координатах головы.
+// Башня перебирает их по кругу: стволы пулемёта и трубы ракетницы стреляют поочерёдно
+const MUZZLES: Readonly<Record<TowerType, readonly THREE.Vector3[]>> = {
+  pulse: [new THREE.Vector3(-0.12, 0, 0.83), new THREE.Vector3(0.12, 0, 0.83)],
+  rocket: [
+    new THREE.Vector3(-0.17, 0.11, 0.42),
+    new THREE.Vector3(0.17, -0.11, 0.42),
+    new THREE.Vector3(0.17, 0.11, 0.42),
+    new THREE.Vector3(-0.17, -0.11, 0.42),
+  ],
+  cryo: [new THREE.Vector3(0, 0.65, 0)],
+}
+
 // Модель башни: неподвижная платформа и голова, которая поворачивается к цели
 export interface TowerModel {
   readonly root: THREE.Group
   readonly head: THREE.Group
+  readonly muzzles: readonly THREE.Vector3[]
 }
 
 function group(...children: THREE.Object3D[]): THREE.Group {
@@ -29,6 +43,10 @@ export class TowerModels {
   private readonly trimGeometry: THREE.BufferGeometry
   private readonly neckGeometry: THREE.BufferGeometry
 
+  // Луч крио-башни: открытый цилиндр высотой 1 вдоль Y — растягивается на длину луча
+  private readonly beamGeometry: THREE.BufferGeometry
+  private readonly beamMaterial: THREE.MeshBasicMaterial
+
   private readonly prototypes: Record<TowerType, THREE.Group>
 
   constructor() {
@@ -38,6 +56,17 @@ export class TowerModels {
     this.baseGeometry = this.geometry(new THREE.CylinderGeometry(0.75, 0.85, 0.3, 6))
     this.trimGeometry = this.geometry(new THREE.CylinderGeometry(0.77, 0.77, 0.05, 6))
     this.neckGeometry = this.geometry(new THREE.CylinderGeometry(0.22, 0.3, 0.3, 8))
+
+    this.beamGeometry = this.geometry(new THREE.CylinderGeometry(BEAM_RADIUS, BEAM_RADIUS, 1, 8, 1, true))
+    this.beamMaterial = this.track(
+      new THREE.MeshBasicMaterial({
+        color: new THREE.Color(COLORS.cryo).multiplyScalar(BEAM_INTENSITY),
+        transparent: true,
+        opacity: 0.85,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+      }),
+    )
 
     this.prototypes = {
       pulse: this.createPulse(),
@@ -51,7 +80,11 @@ export class TowerModels {
     // clone() не сохраняет ссылки на детали — находим голову по имени
     const head = root.getObjectByName(HEAD_NAME)
     if (!(head instanceof THREE.Group)) throw new Error(`У модели башни ${type} нет головы`)
-    return { root, head }
+    return { root, head, muzzles: MUZZLES[type] }
+  }
+
+  createBeam(): THREE.Mesh {
+    return new THREE.Mesh(this.beamGeometry, this.beamMaterial)
   }
 
   // Прототип: шестигранная платформа с неоновым кантом + голова на оси поворота

@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import { Combat } from './combat/Combat'
 import { CameraRig } from './core/CameraRig'
 import { Pointer } from './core/Pointer'
 import { PostFx } from './core/PostFx'
@@ -18,6 +19,8 @@ import {
   AMBIENT_INTENSITY,
   CELL_SIZE,
   COLORS,
+  DEATH_FLASH_DURATION,
+  DEATH_FLASH_RADIUS,
   FOG_FAR,
   FOG_NEAR,
   MAX_DELTA,
@@ -36,6 +39,9 @@ import type { EnemyType, GridPoint, TowerType } from './types'
 // Горячие клавиши выбора башен — по порядку TOWER_ORDER
 const TOWER_HOTKEYS = ['Digit1', 'Digit2', 'Digit3']
 
+// Вне волны башням не в кого стрелять
+const NO_ENEMIES: readonly Enemy[] = []
+
 // Игра: сцена, цикл и правила. Наружу — store (состояние для интерфейса) и публичные методы (команды)
 export class Game {
   private readonly container: HTMLElement
@@ -53,6 +59,7 @@ export class Game {
   private readonly models = new EnemyModels()
   private readonly towerModels = new TowerModels()
   private readonly spawner = new WaveSpawner()
+  private readonly combat = new Combat(this.scene)
   private readonly highlight = new CellHighlight()
   private readonly pointer: Pointer
 
@@ -66,6 +73,7 @@ export class Game {
   private hoveredCell: GridPoint | null = null
   private readonly pointerPoint = new THREE.Vector3()
   private readonly cellCenter = new THREE.Vector3()
+  private readonly effectPoint = new THREE.Vector3()
 
   constructor(container: HTMLElement, store: GameStore) {
     this.container = container
@@ -142,6 +150,7 @@ export class Game {
     this.enemies.length = 0
     for (const tower of this.towers.values()) this.scene.remove(tower.root)
     this.towers.clear()
+    this.combat.clear()
     this.spawner.stop()
     Object.assign(this.store, initialState())
   }
@@ -212,14 +221,36 @@ export class Game {
     this.spawner.update(delta, this.spawnEnemy)
     this.updateEnemies(delta)
 
-    // Жизни кончились — поражение, враги замирают на местах
+    // Жизни кончились — поражение: враги замирают, снаряды и вспышки убираем
     if (this.store.lives === 0) {
       this.spawner.stop()
+      this.combat.clear()
       this.store.state = 'defeat'
       return
     }
 
+    this.updateCombat(delta, this.enemies)
+    this.removeDead()
+
     if (this.spawner.done && this.enemies.length === 0) this.completeWave()
+  }
+
+  // Башни выбирают цели и стреляют, снаряды летят и наносят урон
+  private updateCombat(delta: number, targets: readonly Enemy[]): void {
+    for (const tower of this.towers.values()) tower.update(delta, targets, this.combat)
+    this.combat.update(delta, targets)
+  }
+
+  // Погибшие за кадр: награда, вспышка, удаление
+  private removeDead(): void {
+    for (let i = this.enemies.length - 1; i >= 0; i--) {
+      const enemy = this.enemies[i]
+      if (enemy.hp > 0) continue
+
+      this.store.credits += enemy.stats.reward
+      this.combat.explode(enemy.aimPoint(this.effectPoint), DEATH_FLASH_RADIUS, COLORS[enemy.type], DEATH_FLASH_DURATION)
+      this.removeEnemy(i)
+    }
   }
 
   private updateEnemies(delta: number): void {
@@ -284,7 +315,8 @@ export class Game {
     const delta = Math.min(this.clock.getDelta(), MAX_DELTA)
 
     if (this.store.state === 'wave') this.updateWave(delta)
-    for (const tower of this.towers.values()) tower.update(delta)
+    // Вне волны башни осматриваются, а снаряды и вспышки дорабатывают без целей
+    else this.updateCombat(delta, NO_ENEMIES)
 
     this.arena.update(delta)
     this.rig.update()
@@ -301,6 +333,7 @@ export class Game {
     this.postFx.dispose()
     this.arena.dispose()
     this.highlight.dispose()
+    this.combat.dispose()
     this.models.dispose()
     this.towerModels.dispose()
     this.sun.dispose()
