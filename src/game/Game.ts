@@ -14,6 +14,7 @@ import {
   DEBRIS_CLEANUP_DEPTH,
   FOG_FAR,
   FOG_NEAR,
+  IDLE_ORBIT_SPEED,
   MAX_DELTA,
   MIN_PIECE,
   MOVE_RANGE,
@@ -21,7 +22,9 @@ import {
   PERFECT_GROW_STREAK,
   PERFECT_TOLERANCE,
 } from './config'
-import type { Axis, GameEvents } from './types'
+import type { Axis, GameEvents, GameState } from './types'
+
+const UP = new THREE.Vector3(0, 1, 0)
 
 export class Game {
   private readonly container: HTMLElement
@@ -45,7 +48,10 @@ export class Game {
   // Сколько идеальных попаданий подряд
   private combo = 0
 
-  // Плита, которая сейчас ездит над башней; null — игра окончена
+  // Текущее состояние игры — единственный источник правды
+  private state: GameState = 'ready'
+
+  // Плита, которая сейчас ездит над башней; null — вне состояния 'playing'
   private moving: Block | null = null
   private axis: Axis = 'x'
   private direction = 1
@@ -53,6 +59,10 @@ export class Game {
 
   // Высота, на которую сейчас смотрит камера (плавно догоняет вершину башни)
   private focusY = 0
+
+  // Угол облёта камеры вокруг башни и смещение камеры с его учётом
+  private orbitAngle = 0
+  private readonly cameraOffset = new THREE.Vector3()
 
   // Палитра текущей партии; при рестарте создаётся новая
   private palette = new Palette()
@@ -85,7 +95,7 @@ export class Game {
     sun.position.set(5, 10, 7)
     this.scene.add(ambient, sun)
 
-    this.start()
+    this.reset()
 
     // Первый кадр сразу в цвет палитры, без перехода из чёрного
     this.palette.background(this.blocks.length, this.background)
@@ -108,11 +118,24 @@ export class Game {
     return this.blocks.length - 1
   }
 
-  // Основание башни + первая движущаяся плита
-  private start(): void {
+  private setState(state: GameState): void {
+    this.state = state
+    this.events.onStateChange(state)
+  }
+
+  // Только основание башни — сцена для стартового экрана
+  private reset(): void {
     this.blocks.push(this.createBlock(0, BLOCK_SIZE, BLOCK_SIZE))
-    this.moving = this.spawnMoving()
     this.events.onScore(this.score)
+  }
+
+  // Начало партии: первая движущаяся плита
+  private begin(): void {
+    // Сбрасываем лишние обороты облёта, чтобы камера вернулась коротким путём
+    this.orbitAngle = Math.atan2(Math.sin(this.orbitAngle), Math.cos(this.orbitAngle))
+
+    this.moving = this.spawnMoving()
+    this.setState('playing')
   }
 
   // Убрать всё со сцены и начать заново
@@ -126,7 +149,8 @@ export class Game {
     this.combo = 0
 
     this.palette = new Palette()
-    this.start()
+    this.reset()
+    this.begin()
   }
 
   private createBlock(index: number, width: number, depth: number): Block {
@@ -199,7 +223,7 @@ export class Game {
     if (overlap <= 0) {
       this.debris.push(new Debris(moving, axis, side))
       this.moving = null
-      this.events.onGameOver(this.score)
+      this.setState('over')
       return
     }
 
@@ -271,7 +295,8 @@ export class Game {
 
   // Действие игрока (клик, тап, пробел, Enter): поставить плиту
   private action(): void {
-    if (this.moving) this.place(this.moving)
+    if (this.state === 'ready') this.begin()
+    else if (this.state === 'playing' && this.moving) this.place(this.moving)
   }
 
   private resize(): void {
@@ -294,7 +319,14 @@ export class Game {
     // Камера плавно подтягивается к уровню над вершиной, независимо от частоты кадров
     const targetY = this.blocks.length * BLOCK_HEIGHT
     this.focusY = THREE.MathUtils.damp(this.focusY, targetY, CAMERA_DAMPING, delta)
-    this.camera.position.set(CAMERA_OFFSET.x, this.focusY + CAMERA_OFFSET.y, CAMERA_OFFSET.z)
+    // Стартовый экран — медленный облёт; в игре — плавный возврат в рабочий ракурс
+    if (this.state === 'ready') this.orbitAngle += IDLE_ORBIT_SPEED * delta
+    else this.orbitAngle = THREE.MathUtils.damp(this.orbitAngle, 0, CAMERA_DAMPING, delta)
+
+    this.cameraOffset
+      .set(CAMERA_OFFSET.x, CAMERA_OFFSET.y, CAMERA_OFFSET.z)
+      .applyAxisAngle(UP, this.orbitAngle)
+    this.camera.position.set(this.cameraOffset.x, this.focusY + this.cameraOffset.y, this.cameraOffset.z)
     this.camera.lookAt(0, this.focusY, 0)
 
     // Фон плавно перетекает к цвету текущей высоты; туман — того же цвета

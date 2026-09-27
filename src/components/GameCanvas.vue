@@ -2,14 +2,17 @@
 import { onBeforeUnmount, onMounted, ref, useTemplateRef } from 'vue'
 import { useBestScore } from '../composables/useBestScore'
 import { Game } from '../game/Game'
+import type { GameState } from '../game/types'
 import GameOverScreen from './GameOverScreen.vue'
 import ScoreHud from './ScoreHud.vue'
+import StartScreen from './StartScreen.vue'
 
 const container = useTemplateRef<HTMLDivElement>('container')
 
-// Состояние интерфейса: простые значения — их безопасно делать реактивными
+// Состояние интерфейса: простые значения — их безопасно делать реактивными.
+// state — копия состояния игры: меняется только по событию из Game
+const state = ref<GameState>('ready')
 const score = ref(0)
-const isOver = ref(false)
 const isNewBest = ref(false)
 const combo = ref(0)
 const perfectCount = ref(0)
@@ -26,9 +29,10 @@ onMounted(() => {
     onScore: (value) => {
       score.value = value
     },
-    onGameOver: (value) => {
-      isNewBest.value = submit(value)
-      isOver.value = true
+    onStateChange: (value) => {
+      if (value === 'over') isNewBest.value = submit(score.value)
+      if (value === 'playing') perfectCount.value = 0
+      state.value = value
     },
     onPerfect: (value) => {
       combo.value = value
@@ -38,8 +42,6 @@ onMounted(() => {
 })
 
 function restart(): void {
-  isOver.value = false
-  perfectCount.value = 0
   game?.restart()
 }
 
@@ -51,9 +53,15 @@ onBeforeUnmount(() => {
 
 <template>
   <div ref="container" class="game" />
-  <ScoreHud v-if="!isOver" :score="score" :combo="combo" :perfect-count="perfectCount" />
+  <StartScreen v-if="state === 'ready'" :best="best" />
+  <ScoreHud
+    v-if="state === 'playing'"
+    :score="score"
+    :combo="combo"
+    :perfect-count="perfectCount"
+  />
   <GameOverScreen
-    v-if="isOver"
+    v-if="state === 'over'"
     :score="score"
     :best="best"
     :is-new-best="isNewBest"

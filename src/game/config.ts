@@ -51,3 +51,6 @@ export const PERFECT_GROW_AMOUNT = 0.2
 // Вспышка при идеальном попадании: длительность (сек) и во сколько раз она расширяется
 export const FLASH_DURATION = 0.5
 export const FLASH_GROWTH = 1.4
+
+// Облёт камеры на стартовом экране (радиан/сек)
+export const IDLE_ORBIT_SPEED = 0.3
