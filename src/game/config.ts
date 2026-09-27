@@ -38,3 +38,11 @@ export const BACKGROUND_DAMPING = 2
 // Туман: с какого расстояния от камеры начинается и где объекты полностью растворяются
 export const FOG_NEAR = 12
 export const FOG_FAR = 30
+
+// Идеальное попадание: сколько подряд нужно для роста плиты и на сколько она растёт
+export const PERFECT_GROW_STREAK = 3
+export const PERFECT_GROW_AMOUNT = 0.2
+
+// Вспышка при идеальном попадании: длительность (сек) и во сколько раз она расширяется
+export const FLASH_DURATION = 0.5
+export const FLASH_GROWTH = 1.4

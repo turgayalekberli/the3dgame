@@ -4,4 +4,5 @@ export type Axis = 'x' | 'z'
 export interface GameEvents {
   onScore: (score: number) => void
   onGameOver: (score: number) => void
+  onPerfect: (combo: number) => void
 }

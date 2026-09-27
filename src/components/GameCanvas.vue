@@ -11,6 +11,8 @@ const container = useTemplateRef<HTMLDivElement>('container')
 const score = ref(0)
 const isOver = ref(false)
 const isNewBest = ref(false)
+const combo = ref(0)
+const perfectCount = ref(0)
 
 const { best, submit } = useBestScore()
 
@@ -28,11 +30,16 @@ onMounted(() => {
       isNewBest.value = submit(value)
       isOver.value = true
     },
+    onPerfect: (value) => {
+      combo.value = value
+      perfectCount.value++
+    },
   })
 })
 
 function restart(): void {
   isOver.value = false
+  perfectCount.value = 0
   game?.restart()
 }
 
@@ -44,7 +51,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div ref="container" class="game" />
-  <ScoreHud v-if="!isOver" :score="score" />
+  <ScoreHud v-if="!isOver" :score="score" :combo="combo" :perfect-count="perfectCount" />
   <GameOverScreen
     v-if="isOver"
     :score="score"

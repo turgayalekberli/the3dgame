@@ -2,6 +2,7 @@ import * as THREE from 'three'
 import { Block } from './Block'
 import { Debris } from './Debris'
 import { Palette } from './Palette'
+import { PerfectFlash } from './PerfectFlash'
 import {
   BACKGROUND_DAMPING,
   BLOCK_HEIGHT,
@@ -15,6 +16,8 @@ import {
   MIN_PIECE,
   MOVE_RANGE,
   MOVE_SPEED,
+  PERFECT_GROW_AMOUNT,
+  PERFECT_GROW_STREAK,
   PERFECT_TOLERANCE,
 } from './config'
 import type { Axis, GameEvents } from './types'
@@ -33,6 +36,12 @@ export class Game {
 
   // Падающие обрезки
   private readonly debris: Debris[] = []
+
+  // Вспышки идеальных попаданий
+  private readonly flashes: PerfectFlash[] = []
+
+  // Сколько идеальных попаданий подряд
+  private combo = 0
 
   // Плита, которая сейчас ездит над башней; null — игра окончена
   private moving: Block | null = null
@@ -107,8 +116,11 @@ export class Game {
   restart(): void {
     for (const block of this.blocks) this.removeBlock(block)
     for (const piece of this.debris) this.removeBlock(piece.block)
+    for (const flash of this.flashes) this.removeFlash(flash)
     this.blocks.length = 0
     this.debris.length = 0
+    this.flashes.length = 0
+    this.combo = 0
 
     this.palette = new Palette()
     this.start()
@@ -124,6 +136,11 @@ export class Game {
   private removeBlock(block: Block): void {
     this.scene.remove(block.mesh)
     block.dispose()
+  }
+
+  private removeFlash(flash: PerfectFlash): void {
+    this.scene.remove(flash.mesh)
+    flash.dispose()
   }
 
   // Новая плита над башней: того же размера, что верхняя, сдвинута к краю по своей оси
@@ -163,7 +180,8 @@ export class Game {
     let center = moving.mesh.position[axis]
 
     // Почти точное попадание: прощаем и ставим ровно
-    if (Math.abs(center - topCenter) < PERFECT_TOLERANCE) center = topCenter
+    const isPerfect = Math.abs(center - topCenter) < PERFECT_TOLERANCE
+    if (isPerfect) center = topCenter
 
     // С какой стороны свисает: +1 / −1 (0 — ровно)
     const side = Math.sign(center - topCenter)
@@ -183,13 +201,25 @@ export class Game {
 
     const index = this.blocks.length
 
+    // Серия идеальных попаданий: с PERFECT_GROW_STREAK подряд плита начинает расти
+    this.combo = isPerfect ? this.combo + 1 : 0
+    const grows = this.combo >= PERFECT_GROW_STREAK
+    const placedSize = grows ? Math.min(overlap + PERFECT_GROW_AMOUNT, BLOCK_SIZE) : overlap
+
     const placed = this.createBlock(
       index,
-      axis === 'x' ? overlap : moving.width,
-      axis === 'z' ? overlap : moving.depth,
+      axis === 'x' ? placedSize : moving.width,
+      axis === 'z' ? placedSize : moving.depth,
     )
     placed.mesh.position.copy(moving.mesh.position)
     placed.mesh.position[axis] = (start + end) / 2
+
+    if (isPerfect) {
+      const flash = new PerfectFlash(placed.width, placed.depth, placed.mesh.position)
+      this.flashes.push(flash)
+      this.scene.add(flash.mesh)
+      this.events.onPerfect(this.combo)
+    }
 
     // Свисающая часть: от края башни до края плиты
     const overhang = moving[size] - overlap
@@ -225,6 +255,16 @@ export class Game {
     }
   }
 
+  private updateFlashes(delta: number): void {
+    for (let i = this.flashes.length - 1; i >= 0; i--) {
+      const flash = this.flashes[i]
+      if (!flash.update(delta)) {
+        this.removeFlash(flash)
+        this.flashes.splice(i, 1)
+      }
+    }
+  }
+
   // Стрелочная функция: та же ссылка нужна для removeEventListener
   private readonly onPointerDown = (): void => {
     if (this.moving) this.place(this.moving)
@@ -245,6 +285,7 @@ export class Game {
 
     if (this.moving) this.updateMoving(this.moving, delta)
     this.updateDebris(delta)
+    this.updateFlashes(delta)
 
     // Камера плавно подтягивается к уровню над вершиной, независимо от частоты кадров
     const targetY = this.blocks.length * BLOCK_HEIGHT
@@ -266,6 +307,7 @@ export class Game {
     this.container.removeEventListener('pointerdown', this.onPointerDown)
     for (const block of this.blocks) block.dispose()
     for (const piece of this.debris) piece.block.dispose()
+    for (const flash of this.flashes) flash.dispose()
     this.moving?.dispose()
     this.renderer.dispose()
     this.renderer.domElement.remove()
