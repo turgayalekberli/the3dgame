@@ -50,6 +50,18 @@ export class Grid {
     )
   }
 
+  // Клетка под мировой точкой; null — за пределами карты
+  fromWorld(x: number, z: number): GridPoint | null {
+    const col = Math.floor(x / CELL_SIZE + this.cols / 2)
+    const row = Math.floor(z / CELL_SIZE + this.rows / 2)
+    return this.inside(col, row) ? { col, row } : null
+  }
+
+  // Уникальный номер клетки — ключ для словарей
+  key(point: GridPoint): number {
+    return point.row * this.cols + point.col
+  }
+
   forEach(callback: (point: GridPoint, type: CellType) => void): void {
     for (let row = 0; row < this.rows; row++) {
       for (let col = 0; col < this.cols; col++) {

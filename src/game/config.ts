@@ -88,6 +88,16 @@ export const HEALTH_BAR_WIDTH = 0.9
 export const HEALTH_BAR_HEIGHT = 0.12
 export const HEALTH_BAR_PADDING = 0.02
 
+// Башни: скорость холостого вращения головы (рад/сек)
+export const TOWER_IDLE_SPIN = 0.4
+
+// Подсветка клетки под курсором: толщина рамки и яркость (больше 1 — светится через bloom)
+export const HIGHLIGHT_WIDTH = 0.08
+export const HIGHLIGHT_INTENSITY = 2
+// Кольцо радиуса башни: толщина линии и прозрачность заливки круга
+export const RANGE_RING_WIDTH = 0.05
+export const RANGE_FILL_OPACITY = 0.08
+
 // Цвета
 export const COLORS = {
   background: 0x05070d,
@@ -107,6 +117,12 @@ export const COLORS = {
   tank: 0xa66bff,
   healthBack: 0x0a0d18,
   healthFill: 0x4dff88,
+  towerMetal: 0x303a58,
+  pulse: 0xffd166,
+  rocket: 0xff8a3d,
+  cryo: 0x7fe7ff,
+  valid: 0x4dff88,
+  invalid: 0xff4d6a,
 } as const
 
 // Яркость неона: emissiveIntensity больше 1 выводит цвет за порог bloom

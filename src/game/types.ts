@@ -21,3 +21,6 @@ export interface LevelData {
 
 // Типы врагов
 export type EnemyType = 'drone' | 'runner' | 'tank'
+
+// Типы башен
+export type TowerType = 'pulse' | 'rocket' | 'cryo'

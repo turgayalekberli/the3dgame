@@ -2,6 +2,7 @@
 import { onBeforeUnmount, onMounted, reactive, readonly, useTemplateRef } from 'vue'
 import { Game } from '../game/Game'
 import { initialState } from '../game/store'
+import type { TowerType } from '../game/types'
 import Hud from './Hud.vue'
 
 const container = useTemplateRef<HTMLDivElement>('container')
@@ -27,6 +28,10 @@ function restart(): void {
   game?.restart()
 }
 
+function selectTower(type: TowerType): void {
+  game?.selectTower(type)
+}
+
 onBeforeUnmount(() => {
   game?.dispose()
   game = null
@@ -35,7 +40,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div ref="container" class="game" />
-  <Hud :store="view" @start-wave="startWave" @restart="restart" />
+  <Hud :store="view" @start-wave="startWave" @restart="restart" @select-tower="selectTower" />
 </template>
 
 <style scoped>

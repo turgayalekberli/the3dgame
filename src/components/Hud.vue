@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { computed, type DeepReadonly } from 'vue'
 import type { GameStore } from '../game/store'
+import type { TowerType } from '../game/types'
+import TowerPanel from './TowerPanel.vue'
 
 const props = defineProps<{ store: DeepReadonly<GameStore> }>()
-const emit = defineEmits<{ startWave: []; restart: [] }>()
+const emit = defineEmits<{ startWave: []; restart: []; selectTower: [type: TowerType] }>()
 
 const isFinished = computed(() => props.store.state === 'victory' || props.store.state === 'defeat')
 </script>
@@ -25,19 +27,29 @@ const isFinished = computed(() => props.store.state === 'victory' || props.store
       </div>
     </div>
 
-    <div class="actions">
-      <template v-if="isFinished">
-        <p class="result">{{ store.state === 'victory' ? 'Победа' : 'Поражение' }}</p>
-        <button class="button" @click="emit('restart')">Заново</button>
-      </template>
-      <button
-        v-else
-        class="button"
-        :disabled="store.state !== 'build'"
-        @click="emit('startWave')"
-      >
-        {{ store.state === 'wave' ? 'Волна идёт…' : 'Начать волну' }}
-      </button>
+    <div class="bottom">
+      <TowerPanel
+        v-if="!isFinished"
+        class="towers"
+        :credits="store.credits"
+        :selected="store.selectedTower"
+        @select="emit('selectTower', $event)"
+      />
+
+      <div class="actions">
+        <template v-if="isFinished">
+          <p class="result">{{ store.state === 'victory' ? 'Победа' : 'Поражение' }}</p>
+          <button class="button" @click="emit('restart')">Заново</button>
+        </template>
+        <button
+          v-else
+          class="button"
+          :disabled="store.state !== 'build'"
+          @click="emit('startWave')"
+        >
+          {{ store.state === 'wave' ? 'Волна идёт…' : 'Начать волну' }}
+        </button>
+      </div>
     </div>
   </div>
 </template>
@@ -92,10 +104,22 @@ const isFinished = computed(() => props.store.state === 'victory' || props.store
   color: #ff5c8a;
 }
 
+/* Нижняя строка: панель башен по центру, кнопка волны справа */
+.bottom {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: end;
+}
+
+.towers {
+  grid-column: 2;
+}
+
 .actions {
+  grid-column: 3;
+  justify-self: end;
   display: flex;
   align-items: center;
-  justify-content: flex-end;
   gap: 1rem;
 }
 
