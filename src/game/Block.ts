@@ -13,6 +13,9 @@ export class Block {
       new THREE.BoxGeometry(width, BLOCK_HEIGHT, depth),
       new THREE.MeshStandardMaterial({ color }),
     )
+    // Плита и отбрасывает тень, и принимает тени от других
+    this.mesh.castShadow = true
+    this.mesh.receiveShadow = true
   }
 
   dispose(): void {

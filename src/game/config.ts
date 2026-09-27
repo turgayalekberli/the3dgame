@@ -57,3 +57,10 @@ export const FLASH_GROWTH = 1.4
 
 // Облёт камеры на стартовом экране (радиан/сек)
 export const IDLE_ORBIT_SPEED = 0.3
+
+// Солнце: смещение от точки, на которую смотрит камера (задаёт угол света)
+export const SUN_OFFSET = { x: 5, y: 10, z: 7 } as const
+
+// Тени: разрешение карты теней и половина стороны области вокруг вершины, где они считаются
+export const SHADOW_MAP_SIZE = 2048
+export const SHADOW_EXTENT = 8

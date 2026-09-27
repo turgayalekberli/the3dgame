@@ -24,6 +24,9 @@ import {
   PERFECT_GROW_AMOUNT,
   PERFECT_GROW_STREAK,
   PERFECT_TOLERANCE,
+  SHADOW_EXTENT,
+  SHADOW_MAP_SIZE,
+  SUN_OFFSET,
 } from './config'
 import type { Axis, GameEvents, GameState } from './types'
 
@@ -35,6 +38,7 @@ export class Game {
   private readonly renderer: THREE.WebGLRenderer
   private readonly scene = new THREE.Scene()
   private readonly camera: THREE.PerspectiveCamera
+  private readonly sun: THREE.DirectionalLight
   private readonly clock = new THREE.Clock()
   private readonly resizeObserver: ResizeObserver
   private readonly input: Input
@@ -85,6 +89,9 @@ export class Game {
     // Renderer: рисует кадр в <canvas>
     this.renderer = new THREE.WebGLRenderer({ antialias: true })
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+    // Тени: включаются явно — это дополнительный рендер сцены с точки зрения света
+    this.renderer.shadowMap.enabled = true
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap
     container.appendChild(this.renderer.domElement)
 
     // Фон и туман одного цвета: дальние объекты плавно растворяются в фоне
@@ -95,11 +102,26 @@ export class Game {
     // Camera: угол обзора 45°, видит от 0.1 до 100 единиц
     this.camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100)
 
-    // Свет: мягкий общий + направленный «солнечный»
+    // Свет: мягкий общий + направленный «солнечный» с тенями
     const ambient = new THREE.AmbientLight(0xffffff, 0.4)
-    const sun = new THREE.DirectionalLight(0xffffff, 1.5)
-    sun.position.set(5, 10, 7)
-    this.scene.add(ambient, sun)
+    this.sun = new THREE.DirectionalLight(0xffffff, 1.5)
+    this.sun.castShadow = true
+    this.sun.shadow.mapSize.set(SHADOW_MAP_SIZE, SHADOW_MAP_SIZE)
+    // Против «полос» самозатенения (shadow acne) на гранях
+    this.sun.shadow.normalBias = 0.02
+
+    // Тень направленного света снимает ортографическая камера-коробка: задаём её размер
+    const shadowCamera = this.sun.shadow.camera
+    shadowCamera.left = -SHADOW_EXTENT
+    shadowCamera.right = SHADOW_EXTENT
+    shadowCamera.top = SHADOW_EXTENT
+    shadowCamera.bottom = -SHADOW_EXTENT
+    shadowCamera.near = 1
+    shadowCamera.far = 40
+    shadowCamera.updateProjectionMatrix()
+
+    // target добавляем в сцену — иначе его перемещение не учитывается
+    this.scene.add(ambient, this.sun, this.sun.target)
 
     this.reset()
 
@@ -356,6 +378,10 @@ export class Game {
     this.camera.position.set(this.cameraOffset.x, this.focusY + this.cameraOffset.y, this.cameraOffset.z)
     this.camera.lookAt(0, this.focusY, 0)
 
+    // Солнце (и коробка его теней) следует за вершиной башни под тем же углом
+    this.sun.position.set(SUN_OFFSET.x, this.focusY + SUN_OFFSET.y, SUN_OFFSET.z)
+    this.sun.target.position.set(0, this.focusY, 0)
+
     // Фон плавно перетекает к цвету текущей высоты; туман — того же цвета
     this.palette.background(this.blocks.length, this.targetBackground)
     this.background.lerp(this.targetBackground, 1 - Math.exp(-BACKGROUND_DAMPING * delta))
@@ -372,6 +398,7 @@ export class Game {
     for (const piece of this.debris) piece.block.dispose()
     for (const flash of this.flashes) flash.dispose()
     this.moving?.dispose()
+    this.sun.dispose()
     this.renderer.dispose()
     this.renderer.domElement.remove()
   }
