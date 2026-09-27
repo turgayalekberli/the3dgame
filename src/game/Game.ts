@@ -1,6 +1,16 @@
 import * as THREE from 'three'
 import { Block } from './Block'
-import { BLOCK_HEIGHT, BLOCK_SIZE, CAMERA_DAMPING, CAMERA_OFFSET } from './config'
+import {
+  BLOCK_HEIGHT,
+  BLOCK_SIZE,
+  CAMERA_DAMPING,
+  CAMERA_OFFSET,
+  MAX_DELTA,
+  MOVE_RANGE,
+  MOVE_SPEED,
+} from './config'
+
+type Axis = 'x' | 'z'
 
 export class Game {
   private readonly container: HTMLElement
@@ -9,9 +19,16 @@ export class Game {
   private readonly camera: THREE.PerspectiveCamera
   private readonly clock = new THREE.Clock()
   private readonly resizeObserver: ResizeObserver
+
+  // Уложенные плиты башни, последняя — верхняя
   private readonly blocks: Block[] = []
 
-  // Высота, на которую сейчас смотрит камера (плавно догоняет вершину башни)
+  // Плита, которая сейчас ездит над башней
+  private moving: Block
+  private axis: Axis = 'x'
+  private direction = 1
+
+  // Высота, на которую сейчас смотрит камера (плавно догоняет движущуюся плиту)
   private focusY = 0
 
   constructor(container: HTMLElement) {
@@ -33,7 +50,9 @@ export class Game {
     sun.position.set(5, 10, 7)
     this.scene.add(ambient, sun)
 
-    this.addBlock()
+    // Основание башни + первая движущаяся плита
+    this.blocks.push(this.createBlock(0, BLOCK_SIZE, BLOCK_SIZE))
+    this.moving = this.spawnMoving()
 
     container.addEventListener('pointerdown', this.onPointerDown)
 
@@ -44,26 +63,56 @@ export class Game {
     this.renderer.setAnimationLoop(() => this.tick())
   }
 
-  // Центр верхней плиты по Y
-  private get topY(): number {
-    return (this.blocks.length - 1) * BLOCK_HEIGHT
+  private get top(): Block {
+    return this.blocks[this.blocks.length - 1]
   }
 
-  private addBlock(): void {
-    const index = this.blocks.length
+  private createBlock(index: number, width: number, depth: number): Block {
     // Каждая следующая плита чуть сдвигает оттенок по цветовому кругу
     const color = new THREE.Color().setHSL((index * 0.04) % 1, 0.6, 0.55)
 
-    const block = new Block(BLOCK_SIZE, BLOCK_SIZE, color)
+    const block = new Block(width, depth, color)
     block.mesh.position.y = index * BLOCK_HEIGHT
-
-    this.blocks.push(block)
     this.scene.add(block.mesh)
+    return block
+  }
+
+  // Новая плита над башней: того же размера, что верхняя, сдвинута к краю по своей оси
+  private spawnMoving(): Block {
+    const index = this.blocks.length
+    this.axis = index % 2 === 1 ? 'x' : 'z'
+    this.direction = 1
+
+    const block = this.createBlock(index, this.top.width, this.top.depth)
+    block.mesh.position.x = this.top.mesh.position.x
+    block.mesh.position.z = this.top.mesh.position.z
+    block.mesh.position[this.axis] -= MOVE_RANGE
+    return block
+  }
+
+  // Ping-pong: едем с постоянной скоростью, у границы разворачиваемся
+  private updateMoving(delta: number): void {
+    const position = this.moving.mesh.position
+    const center = this.top.mesh.position[this.axis]
+
+    position[this.axis] += MOVE_SPEED * this.direction * delta
+
+    const offset = position[this.axis] - center
+    if (Math.abs(offset) > MOVE_RANGE) {
+      position[this.axis] = center + Math.sign(offset) * MOVE_RANGE
+      this.direction = -Math.sign(offset)
+    }
+  }
+
+  // Остановить плиту: она становится частью башни, появляется следующая
+  private place(): void {
+    this.blocks.push(this.moving)
+    this.moving = this.spawnMoving()
   }
 
   // Стрелочная функция: та же ссылка нужна для removeEventListener
   private readonly onPointerDown = (): void => {
-    this.addBlock()
+    this.place()
   }
 
   private resize(): void {
@@ -77,10 +126,13 @@ export class Game {
 
   // Игровой цикл: ~60 раз в секунду
   private tick(): void {
-    const delta = this.clock.getDelta()
+    const delta = Math.min(this.clock.getDelta(), MAX_DELTA)
 
-    // Камера плавно подтягивается к вершине, независимо от частоты кадров
-    this.focusY = THREE.MathUtils.damp(this.focusY, this.topY, CAMERA_DAMPING, delta)
+    this.updateMoving(delta)
+
+    // Камера плавно подтягивается к движущейся плите, независимо от частоты кадров
+    const targetY = this.moving.mesh.position.y
+    this.focusY = THREE.MathUtils.damp(this.focusY, targetY, CAMERA_DAMPING, delta)
     this.camera.position.set(CAMERA_OFFSET.x, this.focusY + CAMERA_OFFSET.y, CAMERA_OFFSET.z)
     this.camera.lookAt(0, this.focusY, 0)
 
@@ -92,6 +144,7 @@ export class Game {
     this.resizeObserver.disconnect()
     this.container.removeEventListener('pointerdown', this.onPointerDown)
     for (const block of this.blocks) block.dispose()
+    this.moving.dispose()
     this.renderer.dispose()
     this.renderer.domElement.remove()
   }
