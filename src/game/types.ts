@@ -18,3 +18,6 @@ export interface LevelData {
   readonly waypoints: readonly GridPoint[]
   readonly blocked: readonly GridPoint[]
 }
+
+// Типы врагов
+export type EnemyType = 'drone' | 'runner' | 'tank'

@@ -6,7 +6,6 @@ export const CELL_SIZE = 2
 // Экономика и волны
 export const START_CREDITS = 150
 export const START_LIVES = 20
-export const TOTAL_WAVES = 10
 // Бонус за волну: база + прибавка за номер волны
 export const WAVE_BONUS_BASE = 20
 export const WAVE_BONUS_PER_WAVE = 5
@@ -79,6 +78,16 @@ export const BASE_SPIN_SPEED = 1.2
 export const BASE_LIGHT_INTENSITY = 6
 export const BASE_LIGHT_DISTANCE = 8
 
+// Враги: скорость доворота на углах пути и покачивание корпуса
+export const ENEMY_TURN_DAMPING = 10
+export const ENEMY_BOB_AMPLITUDE = 0.08
+export const ENEMY_BOB_SPEED = 4
+
+// Полоска HP: размеры и рамка вокруг заливки
+export const HEALTH_BAR_WIDTH = 0.9
+export const HEALTH_BAR_HEIGHT = 0.12
+export const HEALTH_BAR_PADDING = 0.02
+
 // Цвета
 export const COLORS = {
   background: 0x05070d,
@@ -92,6 +101,12 @@ export const COLORS = {
   pathFloor: 0x0a3a50,
   spawn: 0xff3fa4,
   base: 0x2affd5,
+  enemyMetal: 0x2a2f45,
+  drone: 0xff4fd8,
+  runner: 0xff6a3d,
+  tank: 0xa66bff,
+  healthBack: 0x0a0d18,
+  healthFill: 0x4dff88,
 } as const
 
 // Яркость неона: emissiveIntensity больше 1 выводит цвет за порог bloom

@@ -1,5 +1,6 @@
-import { START_CREDITS, START_LIVES, TOTAL_WAVES } from './config'
+import { START_CREDITS, START_LIVES } from './config'
 import type { GameState } from './types'
+import { WAVES } from './waves/waves'
 
 // Состояние, которое видит интерфейс. Только примитивы: Vue оборачивает объект в reactive(),
 // а игра лишь записывает в него значения — сама о Vue ничего не знает
@@ -18,6 +19,6 @@ export function initialState(): GameStore {
     credits: START_CREDITS,
     lives: START_LIVES,
     wave: 0,
-    totalWaves: TOTAL_WAVES,
+    totalWaves: WAVES.length,
   }
 }

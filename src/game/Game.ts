@@ -1,9 +1,14 @@
 import * as THREE from 'three'
 import { CameraRig } from './core/CameraRig'
 import { PostFx } from './core/PostFx'
+import { Enemy } from './enemies/Enemy'
+import { EnemyModels } from './enemies/EnemyModels'
 import { Arena } from './map/Arena'
 import { Grid } from './map/Grid'
 import { LEVEL_1 } from './map/level1'
+import { Path } from './map/Path'
+import { WaveSpawner } from './waves/WaveSpawner'
+import { WAVES } from './waves/waves'
 import {
   AMBIENT_INTENSITY,
   COLORS,
@@ -19,6 +24,7 @@ import {
   WAVE_BONUS_PER_WAVE,
 } from './config'
 import { initialState, type GameStore } from './store'
+import type { EnemyType } from './types'
 
 // Игра: сцена, цикл и правила. Наружу — store (состояние для интерфейса) и публичные методы (команды)
 export class Game {
@@ -33,6 +39,12 @@ export class Game {
   private readonly postFx: PostFx
   private readonly grid: Grid
   private readonly arena: Arena
+  private readonly path: Path
+  private readonly models = new EnemyModels()
+  private readonly spawner = new WaveSpawner()
+
+  // Живые враги на карте
+  private readonly enemies: Enemy[] = []
 
   constructor(container: HTMLElement, store: GameStore) {
     this.container = container
@@ -51,6 +63,7 @@ export class Game {
     this.scene.fog = new THREE.Fog(COLORS.background, FOG_NEAR, FOG_FAR)
 
     this.grid = new Grid(LEVEL_1)
+    this.path = new Path(this.grid)
     this.arena = new Arena(this.grid)
     this.scene.add(this.arena.group)
 
@@ -71,6 +84,7 @@ export class Game {
   startWave(): void {
     if (this.store.state !== 'build') return
     this.store.wave++
+    this.spawner.start(WAVES[this.store.wave - 1])
     this.store.state = 'wave'
   }
 
@@ -80,13 +94,49 @@ export class Game {
   }
 
   private reset(): void {
+    for (const enemy of this.enemies) this.scene.remove(enemy.root)
+    this.enemies.length = 0
+    this.spawner.stop()
     Object.assign(this.store, initialState())
   }
 
-  // Пока врагов нет — волна завершается сразу.
-  // В Фазе 2: спавнер закончил и живых врагов не осталось
-  private isWaveCleared(): boolean {
-    return true
+  // Стрелочная функция: передаётся спавнеру каждый кадр без создания нового замыкания
+  private readonly spawnEnemy = (type: EnemyType): void => {
+    const enemy = new Enemy(type, this.models, this.path)
+    this.enemies.push(enemy)
+    this.scene.add(enemy.root)
+  }
+
+  private updateWave(delta: number): void {
+    this.spawner.update(delta, this.spawnEnemy)
+    this.updateEnemies(delta)
+
+    // Жизни кончились — поражение, враги замирают на местах
+    if (this.store.lives === 0) {
+      this.spawner.stop()
+      this.store.state = 'defeat'
+      return
+    }
+
+    if (this.spawner.done && this.enemies.length === 0) this.completeWave()
+  }
+
+  private updateEnemies(delta: number): void {
+    // С конца: splice сдвигает элементы, при обходе с начала часть пропустили бы
+    for (let i = this.enemies.length - 1; i >= 0; i--) {
+      const enemy = this.enemies[i]
+      enemy.update(delta)
+
+      if (enemy.finished) {
+        this.store.lives = Math.max(0, this.store.lives - enemy.stats.damage)
+        this.removeEnemy(i)
+      }
+    }
+  }
+
+  private removeEnemy(index: number): void {
+    this.scene.remove(this.enemies[index].root)
+    this.enemies.splice(index, 1)
   }
 
   private completeWave(): void {
@@ -132,7 +182,7 @@ export class Game {
   private tick(): void {
     const delta = Math.min(this.clock.getDelta(), MAX_DELTA)
 
-    if (this.store.state === 'wave' && this.isWaveCleared()) this.completeWave()
+    if (this.store.state === 'wave') this.updateWave(delta)
 
     this.arena.update(delta)
     this.rig.update()
@@ -145,6 +195,7 @@ export class Game {
     this.rig.dispose()
     this.postFx.dispose()
     this.arena.dispose()
+    this.models.dispose()
     this.sun.dispose()
     this.renderer.dispose()
     this.renderer.domElement.remove()
