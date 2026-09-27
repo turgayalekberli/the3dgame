@@ -8,9 +8,14 @@ export const CAMERA_OFFSET = { x: 6, y: 5, z: 6 } as const
 // Скорость, с которой камера догоняет вершину башни (больше — быстрее)
 export const CAMERA_DAMPING = 4
 
-// Движущаяся плита: на сколько отъезжает от центра башни и с какой скоростью (единиц/сек)
+// Движущаяся плита: на сколько отъезжает от центра башни
 export const MOVE_RANGE = 4.5
-export const MOVE_SPEED = 4
+
+// Скорость плиты (единиц/сек): стартовая, предельная и темп роста
+// (за MOVE_SPEED_RAMP блоков скорость проходит ~63% пути от стартовой к предельной)
+export const MOVE_SPEED_START = 4
+export const MOVE_SPEED_MAX = 9
+export const MOVE_SPEED_RAMP = 25
 
 // Максимальный шаг времени за кадр (защита от рывка после паузы вкладки)
 export const MAX_DELTA = 0.1

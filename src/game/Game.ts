@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import { Block } from './Block'
 import { Debris } from './Debris'
+import { moveSpeed } from './difficulty'
 import { Palette } from './Palette'
 import { PerfectFlash } from './PerfectFlash'
 import {
@@ -15,7 +16,6 @@ import {
   MAX_DELTA,
   MIN_PIECE,
   MOVE_RANGE,
-  MOVE_SPEED,
   PERFECT_GROW_AMOUNT,
   PERFECT_GROW_STREAK,
   PERFECT_TOLERANCE,
@@ -47,6 +47,7 @@ export class Game {
   private moving: Block | null = null
   private axis: Axis = 'x'
   private direction = 1
+  private speed = 0
 
   // Высота, на которую сейчас смотрит камера (плавно догоняет вершину башни)
   private focusY = 0
@@ -148,6 +149,7 @@ export class Game {
     const index = this.blocks.length
     this.axis = index % 2 === 1 ? 'x' : 'z'
     this.direction = 1
+    this.speed = moveSpeed(this.score)
 
     const block = this.createBlock(index, this.top.width, this.top.depth)
     block.mesh.position.x = this.top.mesh.position.x
@@ -161,7 +163,7 @@ export class Game {
     const position = moving.mesh.position
     const center = this.top.mesh.position[this.axis]
 
-    position[this.axis] += MOVE_SPEED * this.direction * delta
+    position[this.axis] += this.speed * this.direction * delta
 
     const offset = position[this.axis] - center
     if (Math.abs(offset) > MOVE_RANGE) {
