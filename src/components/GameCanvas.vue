@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, useTemplateRef } from 'vue'
+import { useBestScore } from '../composables/useBestScore'
 import { Game } from '../game/Game'
 import GameOverScreen from './GameOverScreen.vue'
 import ScoreHud from './ScoreHud.vue'
@@ -9,6 +10,9 @@ const container = useTemplateRef<HTMLDivElement>('container')
 // Состояние интерфейса: простые значения — их безопасно делать реактивными
 const score = ref(0)
 const isOver = ref(false)
+const isNewBest = ref(false)
+
+const { best, submit } = useBestScore()
 
 // Не ref(): Three.js не должен становиться реактивным
 let game: Game | null = null
@@ -20,7 +24,8 @@ onMounted(() => {
     onScore: (value) => {
       score.value = value
     },
-    onGameOver: () => {
+    onGameOver: (value) => {
+      isNewBest.value = submit(value)
       isOver.value = true
     },
   })
@@ -40,7 +45,13 @@ onBeforeUnmount(() => {
 <template>
   <div ref="container" class="game" />
   <ScoreHud v-if="!isOver" :score="score" />
-  <GameOverScreen v-if="isOver" :score="score" @restart="restart" />
+  <GameOverScreen
+    v-if="isOver"
+    :score="score"
+    :best="best"
+    :is-new-best="isNewBest"
+    @restart="restart"
+  />
 </template>
 
 <style scoped>
