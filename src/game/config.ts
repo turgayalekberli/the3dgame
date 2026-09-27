@@ -30,16 +30,16 @@ export const CAMERA_AZIMUTH_RANGE = deg(45)
 export const CAMERA_DAMPING = 0.08
 
 // Bloom: сила, радиус размытия и порог яркости, с которого пиксель начинает светиться
-export const BLOOM_STRENGTH = 0.9
-export const BLOOM_RADIUS = 0.4
-export const BLOOM_THRESHOLD = 0.7
+export const BLOOM_STRENGTH = 0.6
+export const BLOOM_RADIUS = 0.25
+export const BLOOM_THRESHOLD = 0.85
 // Сглаживание кадра внутри постобработки (renderer-овский antialias там не работает)
 export const MSAA_SAMPLES = 4
 export const TONE_MAPPING_EXPOSURE = 1
 
 // Свет
-export const AMBIENT_INTENSITY = 0.6
-export const SUN_INTENSITY = 1.5
+export const AMBIENT_INTENSITY = 0.9
+export const SUN_INTENSITY = 2
 export const SUN_POSITION = { x: -10, y: 25, z: 12 } as const
 export const SHADOW_MAP_SIZE = 2048
 // Половина стороны области теней — с запасом покрывает карту
@@ -53,12 +53,17 @@ export const FOG_FAR = 100
 export const FLOOR_THICKNESS = 0.5
 // Поля пола вокруг сетки (в клетках)
 export const ARENA_MARGIN = 1
-// Зазор между плитками (доля клетки) — в нём видна светящаяся сетка
+// Зазор между плитками (доля клетки)
 export const TILE_GAP = 0.1
 export const TILE_HEIGHT = 0.2
 export const BLOCKED_HEIGHT = 0.9
+// Отступ светящейся рамки от края плитки
+export const TILE_OUTLINE_INSET = 0.04
+// Подсвеченное дно дороги: тонкая сплошная полоса по всем клеткам пути
+export const PATH_FLOOR_HEIGHT = 0.02
+export const PATH_FLOOR_INTENSITY = 0.25
 // Светящаяся осевая линия дороги
-export const PATH_LINE_WIDTH = 0.12
+export const PATH_LINE_WIDTH = 0.08
 export const PATH_LINE_HEIGHT = 0.04
 
 // Портал спавна
@@ -71,24 +76,25 @@ export const BASE_HEIGHT = 0.4
 export const BASE_CORE_SIZE = 0.4
 export const BASE_CORE_Y = 1.3
 export const BASE_SPIN_SPEED = 1.2
-export const BASE_LIGHT_INTENSITY = 15
+export const BASE_LIGHT_INTENSITY = 6
 export const BASE_LIGHT_DISTANCE = 8
 
 // Цвета
 export const COLORS = {
   background: 0x05070d,
   floor: 0x070b16,
-  tile: 0x151c30,
-  blocked: 0x0d1222,
+  tile: 0x1c2640,
+  blocked: 0x2a3350,
   baseBody: 0x1a2238,
   ambient: 0x6080c0,
   grid: 0x1d6fff,
   path: 0x3fd0ff,
+  pathFloor: 0x0a3a50,
   spawn: 0xff3fa4,
   base: 0x2affd5,
 } as const
 
 // Яркость неона: emissiveIntensity больше 1 выводит цвет за порог bloom
-export const NEON_INTENSITY = 3
-// Яркость линий сетки (множитель цвета)
-export const GRID_INTENSITY = 4
+export const NEON_INTENSITY = 1.8
+// Яркость рамок плиток (множитель цвета)
+export const GRID_INTENSITY = 1.5

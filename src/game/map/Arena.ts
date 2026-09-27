@@ -14,12 +14,15 @@ import {
   FLOOR_THICKNESS,
   GRID_INTENSITY,
   NEON_INTENSITY,
+  PATH_FLOOR_HEIGHT,
+  PATH_FLOOR_INTENSITY,
   PATH_LINE_HEIGHT,
   PATH_LINE_WIDTH,
   PORTAL_RADIUS,
   PORTAL_TUBE,
   TILE_GAP,
   TILE_HEIGHT,
+  TILE_OUTLINE_INSET,
 } from '../config'
 import type { CellType, GridPoint } from '../types'
 import type { Grid } from './Grid'
@@ -42,9 +45,12 @@ export class Arena {
   constructor(grid: Grid) {
     this.grid = grid
 
-    this.group.add(this.createFloor(), this.createGridLines(), this.createPathLine())
-    this.addTiles('buildable', TILE_HEIGHT, COLORS.tile)
-    this.addTiles('blocked', BLOCKED_HEIGHT, COLORS.blocked)
+    const tileSize = CELL_SIZE * (1 - TILE_GAP)
+    this.group.add(this.createFloor(), this.createOutlines(tileSize), this.createPathLine())
+    this.addTiles('buildable', TILE_HEIGHT, tileSize, this.metal(COLORS.tile))
+    this.addTiles('blocked', BLOCKED_HEIGHT, tileSize, this.metal(COLORS.blocked))
+    // Дно дороги — без зазоров, сплошной полосой
+    this.addTiles('path', PATH_FLOOR_HEIGHT, CELL_SIZE, this.neon(COLORS.pathFloor, PATH_FLOOR_INTENSITY))
 
     this.portalMaterial = this.neon(COLORS.spawn)
     this.group.add(this.createPortal(this.portalMaterial))
@@ -78,29 +84,35 @@ export class Arena {
     return floor
   }
 
-  // Линии по границам клеток на уровне пола: светятся в зазорах между плитками и на дороге
-  private createGridLines(): THREE.LineSegments {
-    const halfWidth = this.grid.width / 2
-    const halfDepth = this.grid.depth / 2
-    const y = 0.01
+  // Светящиеся рамки по верхнему краю плиток, где можно строить, и рамка по периметру карты
+  private createOutlines(tileSize: number): THREE.LineSegments {
     const points: number[] = []
 
-    for (let col = 0; col <= this.grid.cols; col++) {
-      const x = -halfWidth + col * CELL_SIZE
-      points.push(x, y, -halfDepth, x, y, halfDepth)
+    // Четыре стороны прямоугольника на высоте y
+    const rect = (x0: number, z0: number, x1: number, z1: number, y: number): void => {
+      points.push(x0, y, z0, x1, y, z0, x1, y, z0, x1, y, z1, x1, y, z1, x0, y, z1, x0, y, z1, x0, y, z0)
     }
-    for (let row = 0; row <= this.grid.rows; row++) {
-      const z = -halfDepth + row * CELL_SIZE
-      points.push(-halfWidth, y, z, halfWidth, y, z)
-    }
+
+    // Чуть выше верхней грани — без z-fighting с ней
+    const y = TILE_HEIGHT + 0.01
+    const half = tileSize / 2 - TILE_OUTLINE_INSET
+    const center = new THREE.Vector3()
+    this.grid.forEach((point, type) => {
+      if (type !== 'buildable') return
+      this.grid.toWorld(point, center)
+      rect(center.x - half, center.z - half, center.x + half, center.z + half, y)
+    })
+
+    const halfWidth = this.grid.width / 2
+    const halfDepth = this.grid.depth / 2
+    rect(-halfWidth, -halfDepth, halfWidth, halfDepth, 0.01)
 
     const geometry = this.geometry(
       new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(points, 3)),
     )
-    // Цвет ярче 1 — линии проходят порог bloom
+    // Цвет ярче 1 — рамки слегка светятся через bloom
     const color = new THREE.Color(COLORS.grid).multiplyScalar(GRID_INTENSITY)
-    const material = this.track(new THREE.LineBasicMaterial({ color }))
-    return new THREE.LineSegments(geometry, material)
+    return new THREE.LineSegments(geometry, this.track(new THREE.LineBasicMaterial({ color })))
   }
 
   // Неоновая осевая линия дороги: по полоске на каждый отрезок пути
@@ -120,7 +132,7 @@ export class Arena {
       const geometry = this.geometry(new THREE.BoxGeometry(PATH_LINE_WIDTH, PATH_LINE_HEIGHT, length))
       const strip = new THREE.Mesh(geometry, material)
       strip.position.addVectors(from, to).multiplyScalar(0.5)
-      strip.position.y = PATH_LINE_HEIGHT / 2
+      strip.position.y = PATH_FLOOR_HEIGHT + PATH_LINE_HEIGHT / 2
       // lookAt разворачивает локальную ось Z (длину полоски) к следующей точке
       strip.lookAt(to.x, strip.position.y, to.z)
       group.add(strip)
@@ -130,16 +142,15 @@ export class Arena {
   }
 
   // Плитки одного типа клеток — одним InstancedMesh (один draw call на все)
-  private addTiles(type: CellType, height: number, color: number): void {
+  private addTiles(type: CellType, height: number, size: number, material: THREE.Material): void {
     const cells: GridPoint[] = []
     this.grid.forEach((point, cellType) => {
       if (cellType === type) cells.push(point)
     })
     if (cells.length === 0) return
 
-    const size = CELL_SIZE * (1 - TILE_GAP)
     const geometry = this.geometry(new THREE.BoxGeometry(size, height, size))
-    const mesh = new THREE.InstancedMesh(geometry, this.metal(color), cells.length)
+    const mesh = new THREE.InstancedMesh(geometry, material, cells.length)
 
     const position = new THREE.Vector3()
     const matrix = new THREE.Matrix4()
@@ -201,9 +212,9 @@ export class Arena {
   }
 
   // Светящийся материал: цвет задаёт только emissive
-  private neon(color: number): THREE.MeshStandardMaterial {
+  private neon(color: number, intensity = NEON_INTENSITY): THREE.MeshStandardMaterial {
     return this.track(
-      new THREE.MeshStandardMaterial({ color: 0x000000, emissive: color, emissiveIntensity: NEON_INTENSITY }),
+      new THREE.MeshStandardMaterial({ color: 0x000000, emissive: color, emissiveIntensity: intensity }),
     )
   }
 
