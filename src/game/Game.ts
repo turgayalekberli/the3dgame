@@ -2,6 +2,7 @@ import * as THREE from 'three'
 import { Block } from './Block'
 import { Debris } from './Debris'
 import { moveSpeed } from './difficulty'
+import { Input } from './Input'
 import { Palette } from './Palette'
 import { PerfectFlash } from './PerfectFlash'
 import {
@@ -30,6 +31,7 @@ export class Game {
   private readonly camera: THREE.PerspectiveCamera
   private readonly clock = new THREE.Clock()
   private readonly resizeObserver: ResizeObserver
+  private readonly input: Input
 
   // Уложенные плиты башни, последняя — верхняя
   private readonly blocks: Block[] = []
@@ -88,7 +90,7 @@ export class Game {
     // Первый кадр сразу в цвет палитры, без перехода из чёрного
     this.palette.background(this.blocks.length, this.background)
 
-    container.addEventListener('pointerdown', this.onPointerDown)
+    this.input = new Input(container, () => this.action())
 
     this.resizeObserver = new ResizeObserver(() => this.resize())
     this.resizeObserver.observe(container)
@@ -267,8 +269,8 @@ export class Game {
     }
   }
 
-  // Стрелочная функция: та же ссылка нужна для removeEventListener
-  private readonly onPointerDown = (): void => {
+  // Действие игрока (клик, тап, пробел, Enter): поставить плиту
+  private action(): void {
     if (this.moving) this.place(this.moving)
   }
 
@@ -306,7 +308,7 @@ export class Game {
   dispose(): void {
     this.renderer.setAnimationLoop(null)
     this.resizeObserver.disconnect()
-    this.container.removeEventListener('pointerdown', this.onPointerDown)
+    this.input.dispose()
     for (const block of this.blocks) block.dispose()
     for (const piece of this.debris) piece.block.dispose()
     for (const flash of this.flashes) flash.dispose()

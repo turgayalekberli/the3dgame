@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { onBeforeUnmount, onMounted, useTemplateRef } from 'vue'
+
 defineProps<{
   score: number
   best: number
@@ -6,6 +8,20 @@ defineProps<{
 }>()
 
 const emit = defineEmits<{ restart: [] }>()
+
+// Фокус на кнопку с задержкой: чтобы пробел/Enter «по инерции» не перезапустили игру сразу
+const FOCUS_DELAY = 500
+
+const button = useTemplateRef<HTMLButtonElement>('button')
+let focusTimer: number | undefined
+
+onMounted(() => {
+  focusTimer = window.setTimeout(() => button.value?.focus(), FOCUS_DELAY)
+})
+
+onBeforeUnmount(() => {
+  window.clearTimeout(focusTimer)
+})
 </script>
 
 <template>
@@ -14,7 +30,7 @@ const emit = defineEmits<{ restart: [] }>()
     <p v-if="isNewBest" class="badge">Новый рекорд!</p>
     <p class="score">Счёт: {{ score }}</p>
     <p class="best">Лучший: {{ best }}</p>
-    <button type="button" class="button" @click="emit('restart')">Ещё раз</button>
+    <button ref="button" type="button" class="button" @click="emit('restart')">Ещё раз</button>
   </div>
 </template>
 
@@ -56,6 +72,11 @@ const emit = defineEmits<{ restart: [] }>()
 
 .button:hover {
   background: #fff;
+}
+
+.button:focus-visible {
+  outline: 3px solid #ffd166;
+  outline-offset: 3px;
 }
 
 .badge {
