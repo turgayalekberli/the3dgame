@@ -1,11 +1,20 @@
-export type Axis = 'x' | 'z'
+// Состояния игры: стартовый экран → строительство ⇄ волна → победа / поражение
+export type GameState = 'ready' | 'build' | 'wave' | 'victory' | 'defeat'
 
-// Состояния игры: стартовый экран → игра → проигрыш
-export type GameState = 'ready' | 'playing' | 'over'
+// Тип клетки поля
+export type CellType = 'buildable' | 'path' | 'base' | 'blocked'
 
-// Колбэки, через которые игра сообщает наружу о событиях
-export interface GameEvents {
-  onScore: (score: number) => void
-  onStateChange: (state: GameState) => void
-  onPerfect: (combo: number, grows: boolean) => void
+// Координаты клетки в сетке: столбец (ось X) и строка (ось Z)
+export interface GridPoint {
+  readonly col: number
+  readonly row: number
+}
+
+// Описание уровня: размер сетки, путь врагов и декоративные препятствия
+export interface LevelData {
+  readonly cols: number
+  readonly rows: number
+  // Ключевые точки пути: первая — спавн, последняя — база
+  readonly waypoints: readonly GridPoint[]
+  readonly blocked: readonly GridPoint[]
 }
