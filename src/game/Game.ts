@@ -13,10 +13,11 @@ import {
   MOVE_SPEED,
   PERFECT_TOLERANCE,
 } from './config'
-import type { Axis } from './types'
+import type { Axis, GameEvents } from './types'
 
 export class Game {
   private readonly container: HTMLElement
+  private readonly events: GameEvents
   private readonly renderer: THREE.WebGLRenderer
   private readonly scene = new THREE.Scene()
   private readonly camera: THREE.PerspectiveCamera
@@ -37,8 +38,9 @@ export class Game {
   // Высота, на которую сейчас смотрит камера (плавно догоняет вершину башни)
   private focusY = 0
 
-  constructor(container: HTMLElement) {
+  constructor(container: HTMLElement, events: GameEvents) {
     this.container = container
+    this.events = events
 
     // Renderer: рисует кадр в <canvas>
     this.renderer = new THREE.WebGLRenderer({ antialias: true })
@@ -71,14 +73,20 @@ export class Game {
     return this.blocks[this.blocks.length - 1]
   }
 
+  // Счёт: уложенные плиты без основания
+  private get score(): number {
+    return this.blocks.length - 1
+  }
+
   // Основание башни + первая движущаяся плита
   private start(): void {
     this.blocks.push(this.createBlock(0, BLOCK_SIZE, BLOCK_SIZE))
     this.moving = this.spawnMoving()
+    this.events.onScore(this.score)
   }
 
   // Убрать всё со сцены и начать заново
-  private restart(): void {
+  restart(): void {
     for (const block of this.blocks) this.removeBlock(block)
     for (const piece of this.debris) this.removeBlock(piece.block)
     this.blocks.length = 0
@@ -153,6 +161,7 @@ export class Game {
     if (overlap <= 0) {
       this.debris.push(new Debris(moving, axis, side))
       this.moving = null
+      this.events.onGameOver(this.score)
       return
     }
 
@@ -182,6 +191,7 @@ export class Game {
     this.removeBlock(moving)
     this.blocks.push(placed)
     this.moving = this.spawnMoving()
+    this.events.onScore(this.score)
   }
 
   private updateDebris(delta: number): void {
@@ -202,7 +212,6 @@ export class Game {
   // Стрелочная функция: та же ссылка нужна для removeEventListener
   private readonly onPointerDown = (): void => {
     if (this.moving) this.place(this.moving)
-    else this.restart()
   }
 
   private resize(): void {
