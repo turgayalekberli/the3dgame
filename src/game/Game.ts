@@ -8,6 +8,7 @@ import {
   MAX_DELTA,
   MOVE_RANGE,
   MOVE_SPEED,
+  PERFECT_TOLERANCE,
 } from './config'
 
 type Axis = 'x' | 'z'
@@ -27,6 +28,9 @@ export class Game {
   private moving: Block
   private axis: Axis = 'x'
   private direction = 1
+
+  // Промах: плита не попала на башню, игра остановлена
+  private isOver = false
 
   // Высота, на которую сейчас смотрит камера (плавно догоняет движущуюся плиту)
   private focusY = 0
@@ -77,6 +81,11 @@ export class Game {
     return block
   }
 
+  private removeBlock(block: Block): void {
+    this.scene.remove(block.mesh)
+    block.dispose()
+  }
+
   // Новая плита над башней: того же размера, что верхняя, сдвинута к краю по своей оси
   private spawnMoving(): Block {
     const index = this.blocks.length
@@ -104,9 +113,41 @@ export class Game {
     }
   }
 
-  // Остановить плиту: она становится частью башни, появляется следующая
+  // Остановить плиту: оставить только часть над башней, отрезанное — убрать
   private place(): void {
-    this.blocks.push(this.moving)
+    if (this.isOver) return
+
+    const axis = this.axis
+    const size = axis === 'x' ? 'width' : 'depth'
+    const moving = this.moving
+    const top = this.top
+
+    const topCenter = top.mesh.position[axis]
+    let center = moving.mesh.position[axis]
+
+    // Почти точное попадание: прощаем и ставим ровно
+    if (Math.abs(center - topCenter) < PERFECT_TOLERANCE) center = topCenter
+
+    // Пересечение двух отрезков на оси
+    const start = Math.max(center - moving[size] / 2, topCenter - top[size] / 2)
+    const end = Math.min(center + moving[size] / 2, topCenter + top[size] / 2)
+    const overlap = end - start
+
+    if (overlap <= 0) {
+      this.isOver = true
+      return
+    }
+
+    const placed = this.createBlock(
+      this.blocks.length,
+      axis === 'x' ? overlap : moving.width,
+      axis === 'z' ? overlap : moving.depth,
+    )
+    placed.mesh.position.copy(moving.mesh.position)
+    placed.mesh.position[axis] = (start + end) / 2
+
+    this.removeBlock(moving)
+    this.blocks.push(placed)
     this.moving = this.spawnMoving()
   }
 
@@ -128,7 +169,7 @@ export class Game {
   private tick(): void {
     const delta = Math.min(this.clock.getDelta(), MAX_DELTA)
 
-    this.updateMoving(delta)
+    if (!this.isOver) this.updateMoving(delta)
 
     // Камера плавно подтягивается к движущейся плите, независимо от частоты кадров
     const targetY = this.moving.mesh.position.y
