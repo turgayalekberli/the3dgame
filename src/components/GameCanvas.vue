@@ -15,6 +15,7 @@ const state = ref<GameState>('ready')
 const score = ref(0)
 const isNewBest = ref(false)
 const combo = ref(0)
+const grew = ref(false)
 const perfectCount = ref(0)
 
 const { best, submit } = useBestScore()
@@ -34,8 +35,9 @@ onMounted(() => {
       if (value === 'playing') perfectCount.value = 0
       state.value = value
     },
-    onPerfect: (value) => {
+    onPerfect: (value, grows) => {
       combo.value = value
+      grew.value = grows
       perfectCount.value++
     },
   })
@@ -58,6 +60,7 @@ onBeforeUnmount(() => {
     v-if="state === 'playing'"
     :score="score"
     :combo="combo"
+    :grew="grew"
     :perfect-count="perfectCount"
   />
   <GameOverScreen

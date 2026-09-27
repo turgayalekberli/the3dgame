@@ -7,5 +7,5 @@ export type GameState = 'ready' | 'playing' | 'over'
 export interface GameEvents {
   onScore: (score: number) => void
   onStateChange: (state: GameState) => void
-  onPerfect: (combo: number) => void
+  onPerfect: (combo: number, grows: boolean) => void
 }

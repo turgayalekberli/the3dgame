@@ -2,6 +2,7 @@
 defineProps<{
   score: number
   combo: number
+  grew: boolean
   // Меняется при каждом идеальном попадании — перезапускает анимацию надписи
   perfectCount: number
 }>()
@@ -12,6 +13,7 @@ defineProps<{
     <div class="score">{{ score }}</div>
     <div v-if="perfectCount > 0" :key="perfectCount" class="perfect">
       Идеально{{ combo > 1 ? ` ×${combo}` : '' }}
+      <span v-if="grew" class="grow">+ рост</span>
     </div>
   </div>
 </template>
@@ -41,6 +43,11 @@ defineProps<{
   text-transform: uppercase;
   /* forwards: после анимации остаётся в конечном (невидимом) состоянии */
   animation: perfect 0.9s ease-out forwards;
+}
+
+.grow {
+  margin-left: 0.5em;
+  color: #ffd166;
 }
 
 @keyframes perfect {

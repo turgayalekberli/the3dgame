@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import { BLOCK_HEIGHT, FLASH_DURATION, FLASH_GROWTH } from './config'
+import { easeOutQuad } from './easing'
 
 // Вспышка при идеальном попадании: белый прямоугольник на стыке плит расширяется и гаснет
 export class PerfectFlash {
@@ -26,9 +27,8 @@ export class PerfectFlash {
     this.age += delta
     const t = Math.min(this.age / FLASH_DURATION, 1)
 
-    // easeOut: быстро вылетает, плавно замедляется
-    const eased = 1 - (1 - t) ** 2
-    const scale = THREE.MathUtils.lerp(1, FLASH_GROWTH, eased)
+    // Быстро вылетает, плавно замедляется
+    const scale = THREE.MathUtils.lerp(1, FLASH_GROWTH, easeOutQuad(t))
 
     // После поворота локальные X/Y плоскости смотрят вдоль мировых X/Z
     this.mesh.scale.set(scale, scale, 1)

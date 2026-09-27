@@ -2,9 +2,11 @@ import * as THREE from 'three'
 import { Block } from './Block'
 import { Debris } from './Debris'
 import { moveSpeed } from './difficulty'
+import { easeOutBack } from './easing'
 import { Input } from './Input'
 import { Palette } from './Palette'
 import { PerfectFlash } from './PerfectFlash'
+import { Tween } from './Tween'
 import {
   BACKGROUND_DAMPING,
   BLOCK_HEIGHT,
@@ -14,6 +16,7 @@ import {
   DEBRIS_CLEANUP_DEPTH,
   FOG_FAR,
   FOG_NEAR,
+  GROW_DURATION,
   IDLE_ORBIT_SPEED,
   MAX_DELTA,
   MIN_PIECE,
@@ -44,6 +47,9 @@ export class Game {
 
   // Вспышки идеальных попаданий
   private readonly flashes: PerfectFlash[] = []
+
+  // Текущие анимации (рост плиты и т.п.)
+  private readonly tweens: Tween[] = []
 
   // Сколько идеальных попаданий подряд
   private combo = 0
@@ -146,6 +152,7 @@ export class Game {
     this.blocks.length = 0
     this.debris.length = 0
     this.flashes.length = 0
+    this.tweens.length = 0
     this.combo = 0
 
     this.palette = new Palette()
@@ -242,11 +249,15 @@ export class Game {
     placed.mesh.position.copy(moving.mesh.position)
     placed.mesh.position[axis] = (start + end) / 2
 
+    // Рост: плита уже финального размера, визуально «раздуваем» её из прежнего
+    const grew = placedSize > overlap
+    if (grew) this.animateGrowth(placed.mesh, axis, overlap / placedSize)
+
     if (isPerfect) {
       const flash = new PerfectFlash(placed.width, placed.depth, placed.mesh.position)
       this.flashes.push(flash)
       this.scene.add(flash.mesh)
-      this.events.onPerfect(this.combo)
+      this.events.onPerfect(this.combo, grew)
     }
 
     // Свисающая часть: от края башни до края плиты
@@ -293,6 +304,21 @@ export class Game {
     }
   }
 
+  private animateGrowth(mesh: THREE.Mesh, axis: Axis, from: number): void {
+    mesh.scale[axis] = from
+    this.tweens.push(
+      new Tween(GROW_DURATION, (t) => {
+        mesh.scale[axis] = THREE.MathUtils.lerp(from, 1, easeOutBack(t))
+      }),
+    )
+  }
+
+  private updateTweens(delta: number): void {
+    for (let i = this.tweens.length - 1; i >= 0; i--) {
+      if (!this.tweens[i].update(delta)) this.tweens.splice(i, 1)
+    }
+  }
+
   // Действие игрока (клик, тап, пробел, Enter): поставить плиту
   private action(): void {
     if (this.state === 'ready') this.begin()
@@ -315,6 +341,7 @@ export class Game {
     if (this.moving) this.updateMoving(this.moving, delta)
     this.updateDebris(delta)
     this.updateFlashes(delta)
+    this.updateTweens(delta)
 
     // Камера плавно подтягивается к уровню над вершиной, независимо от частоты кадров
     const targetY = this.blocks.length * BLOCK_HEIGHT

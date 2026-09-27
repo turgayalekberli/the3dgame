@@ -48,6 +48,9 @@ export const FOG_FAR = 30
 export const PERFECT_GROW_STREAK = 3
 export const PERFECT_GROW_AMOUNT = 0.2
 
+// Длительность анимации роста плиты (сек)
+export const GROW_DURATION = 0.35
+
 // Вспышка при идеальном попадании: длительность (сек) и во сколько раз она расширяется
 export const FLASH_DURATION = 0.5
 export const FLASH_GROWTH = 1.4
