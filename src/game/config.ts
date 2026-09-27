@@ -109,8 +109,12 @@ export const FLASH_INTENSITY = 2
 
 // Луч крио-башни: толщина, яркость и частота пульсации
 export const BEAM_RADIUS = 0.04
-export const BEAM_INTENSITY = 2.5
+export const BEAM_INTENSITY = 1.3
 export const BEAM_PULSE_SPEED = 30
+
+// Неон башен: целевая воспринимаемая яркость (чуть ниже порога bloom) —
+// одинаковая для всех цветов, иначе жёлтый и голубой светятся сильнее оранжевого
+export const TOWER_NEON_LUMINANCE = 0.7
 
 // Подсветка клетки под курсором: толщина рамки и яркость (больше 1 — светится через bloom)
 export const HIGHLIGHT_WIDTH = 0.08

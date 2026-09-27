@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { BEAM_INTENSITY, BEAM_RADIUS, COLORS, NEON_INTENSITY } from '../config'
+import { BEAM_INTENSITY, BEAM_RADIUS, COLORS, TOWER_NEON_LUMINANCE } from '../config'
 import type { TowerType } from '../types'
 
 // Высота оси поворота головы над основанием башни
@@ -174,9 +174,17 @@ export class TowerModels {
     return mesh
   }
 
+  // Интенсивность подбирается по воспринимаемой яркости цвета (коэффициенты Rec. 709,
+  // линейный цвет): при равной emissiveIntensity жёлтый выглядит втрое ярче оранжевого
   private neon(color: number): THREE.MeshStandardMaterial {
+    const emissive = new THREE.Color(color)
+    const luminance = 0.2126 * emissive.r + 0.7152 * emissive.g + 0.0722 * emissive.b
     return this.track(
-      new THREE.MeshStandardMaterial({ color: 0x000000, emissive: color, emissiveIntensity: NEON_INTENSITY }),
+      new THREE.MeshStandardMaterial({
+        color: 0x000000,
+        emissive,
+        emissiveIntensity: TOWER_NEON_LUMINANCE / luminance,
+      }),
     )
   }
 
